@@ -10,40 +10,10 @@ from pymfe.mfe import MFE
 from sklearn.preprocessing import MinMaxScaler
 import pickle
 
-class MetaFeatureExtractor():
-    def __init__(self, random_state: int = 42):
-        self.mfe = MFE(random_state=random_state)
-    
-    def __check_convert_data_type(self, data):
-        if isinstance(data, list):
-            data = np.array(data)
-        elif isinstance(data, pd.Series) or isinstance(data, pd.DataFrame):
-            data = data.to_numpy()
-
-        return data
-
-    def extract_meta_features(self, X, y=None):
-        X = self.__check_convert_data_type(X)
-
-        if y is None:
-            self.mfe.fit(X)
-        else:
-            y = self.__check_convert_data_type(y)
-            self.mfe.fit(X, y)
-
-        columns_and_features = self.mfe.extract(cat_cols='auto', suppress_warnings=True, verbose=0)
-        columns = columns_and_features[0]
-        features = columns_and_features[1]
-        
-        features = np.nan_to_num(features).tolist()
-        for i in range(0, len(features)):
-            if features[i] > np.finfo(np.float32).max:
-                features[i] = np.finfo(np.float32).max
-
-        return columns, features
+from meta_feature_extractor import MetaFeatureExtractor
     
 class QuantifierRecommender():
-    def __init__(self, supervised:bool = True, meta_table = None):
+    def __init__(self, supervised: bool = True, meta_table = None):
         self.meta_table = meta_table
         self.mfe = MetaFeatureExtractor()
     
@@ -97,17 +67,3 @@ def load_datasets(path):
         dt_list.append(dt)
 
     return dt_list
-
-if __name__ == "__main__":
-    dataset_path = './datasets/'
-    recommender = QuantifierRecommender(supervised=True)
-
-    # dt_list = load_datasets(dataset_path)
-    # for dt in dt_list:
-    #     y = dt.pop(dt.columns[-1])
-    #     X = dt
-    #     recommender.extract_and_append(X, y)
-    # recommender.normalize_meta_table()
-
-    recommender.construct_meta_table(dataset_path=dataset_path, supervised=True)
-    recommender.save_meta_table('meta-features.csv')
