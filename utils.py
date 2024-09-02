@@ -5,6 +5,7 @@ from sklearn.preprocessing import MinMaxScaler
 from sklearn.model_selection import train_test_split
 from sklearn.linear_model import LogisticRegression
 from sklearn.model_selection import GridSearchCV
+import pdb
 
 # This function generates the train and test partitions
 # using holdout with test_size = 0.3 AND random_state = 42
@@ -24,8 +25,9 @@ def generate_train_test_data(source_path,
     if not os.path.exists(test_dest_path):
         os.makedirs(test_dest_path)
     
-    for dataset in dataset_list:
-        dataset = pd.read_csv(f"{source_path}{dataset}")
+    for dataset_name in dataset_list:
+        dataset = pd.read_csv(f"{source_path}/{dataset_name}")
+        
         dataset = dataset.dropna()
 
         columns = dataset.columns
@@ -36,8 +38,8 @@ def generate_train_test_data(source_path,
 
         train, test = train_test_split(dataset, test_size=test_size, random_state=random_state)
 
-        train.to_csv(f"{train_dest_path}{dataset.split(".csv")[0]}-TRAIN.CSV", index=False)
-        test.to_csv(f"{test_dest_path}{dataset.split(".csv")[0]}-TEST.CSV", index=False)
+        train.to_csv(f"{train_dest_path}/{dataset_name.split(".csv")[0]}-TRAIN.csv", index=False)
+        test.to_csv(f"{test_dest_path}/{dataset_name.split(".csv")[0]}-TEST.csv", index=False)
 
 # Hyperparameters of LogisticRegression (LR) are tuned using the train set
 # LR is used as a scorer for the quantifiers
