@@ -2,7 +2,7 @@ from pymfe.mfe import MFE
 import numpy as np
 import pandas as pd
 
-class MetaFeatureExtractor():
+class MetaFeatureExtractor:
     def __init__(self, random_state: int = 42):
         self.mfe = MFE(random_state=random_state)
     
@@ -23,7 +23,7 @@ class MetaFeatureExtractor():
             y = self.__check_convert_data_type(y)
             self.mfe.fit(X, y)
 
-        columns_and_features = self.mfe.extract(cat_cols='auto', suppress_warnings=True, verbose=0)
+        columns_and_features = self.mfe.extract(cat_cols="auto", suppress_warnings=True, verbose=0)
         columns = columns_and_features[0]
         features = columns_and_features[1]
         
