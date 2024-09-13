@@ -1,7 +1,21 @@
+import pandas as pd
+import os
+
 from quantifier_recommender import QuantifierRecommender
 from quantifier_evaluator import QuantifierEvaluator
-from utils import generate_train_test_data
+from utils_ import generate_train_test_data
 from quantifier_evaluator import QuantifierEvaluator
+
+def load_train_test_data(dataset_name):
+    train_df = pd.read_csv(f"./data/train_data/{dataset_name}.csv")
+    y_train = train_df.pop(train_df.columns[-1])
+    X_train = train_df
+
+    test_df = pd.read_csv(f"./data/test_data/{dataset_name}.csv")
+    y_test = test_df.pop(test_df.columns[-1])
+    X_test = test_df
+
+    return X_train.to_numpy(), y_train.to_numpy(), X_test.to_numpy(), y_test.to_numpy()
 
 if __name__ == "__main__":
     dataset_path = "./datasets"
@@ -10,19 +24,23 @@ if __name__ == "__main__":
     # recommender.construct_meta_table(dataset_path=dataset_path, supervised=True)
     # recommender.save_meta_table('meta-features.csv')
 
-    # quantifier_evaluator = QuantifierEvaluator()
-    # QuantifierEvaluator.__quantifiers
+    # generate_train_test_data("./datasets")
 
-    generate_train_test_data("./datasets")
+    quantifier_evaluator = QuantifierEvaluator()
 
+    # X_train, y_train, X_test, y_test = load_train_test_data("AedesQuinx")
+    # quantifier_evaluator.evaluate_internal_quantifiers("AedesQuinx", X_train, y_train, X_test, y_test)
+    # quantifier_evaluator.sort_evaluation_table()
+    # quantifier_evaluator.save_evaluation_table()
 
-    # qtf_eval = QuantifierEvaluator()
-    # qtf_eval.evaluate("a", "b")
-    # qtf_eval.save_processed_datasets_list()
+    dataset_list = [csv for csv in os.listdir("./datasets/") if csv.endswith(".csv")]
+    for dataset in dataset_list:
+        dataset_name = dataset.split(".csv")[0]
 
-    # processed_datasets_list = ["a.csv", "b.csv", "c.csv", "d.csv"]
-    # with open("processed_datasets.json", 'w') as file:
-    #     json.dump(processed_datasets_list, file, indent=4, ensure_ascii=False)
+        X_train, y_train, X_test, y_test = load_train_test_data(dataset_name)
+        
+        quantifier_evaluator.evaluate_internal_quantifiers(dataset_name, X_train, y_train, X_test, y_test)
+        quantifier_evaluator.save_evaluation_table()
 
-
-    
+    quantifier_evaluator.aggregate_evaluation_table()
+    quantifier_evaluator.save_evaluation_table('./aggregated_evaluation_table.csv')

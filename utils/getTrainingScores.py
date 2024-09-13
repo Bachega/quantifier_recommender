@@ -51,6 +51,6 @@ def getTrainingScores(X_train, Y_train, folds, clf):
     train_scores = np.c_[results,class_labl]
     train_scores = pd.DataFrame(train_scores)
     train_scores.columns = ['scores', 'class']
-    train_scores['class'] = np.int0(train_scores['class'])
+    train_scores['class'] = np.int_(train_scores['class'])
     
     return train_scores, clf      
