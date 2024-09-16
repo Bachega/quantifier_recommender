@@ -60,3 +60,16 @@ def grid_search(X_train, y_train):
     
     search.fit(X_train, y_train)
     return search.best_estimator_
+
+# This function loads the Train and Test data created in the
+# generate_train_test_data function
+def load_train_test_data(dataset_name, train_data_path, test_data_path):
+    train_df = pd.read_csv(f"{train_data_path}/{dataset_name}.csv")
+    y_train = train_df.pop(train_df.columns[-1])
+    X_train = train_df
+
+    test_df = pd.read_csv(f"{test_data_path}/{dataset_name}.csv")
+    y_test = test_df.pop(test_df.columns[-1])
+    X_test = test_df
+
+    return X_train.to_numpy(), y_train.to_numpy(), X_test.to_numpy(), y_test.to_numpy()

@@ -26,26 +26,26 @@ if __name__ == "__main__":
 
     # generate_train_test_data("./datasets")
 
-    evaluation_table = pd.read_csv('./evaluation_table.csv')
-    quantifier_evaluator = QuantifierEvaluator(evaluation_table=evaluation_table)
+    quantifier_evaluator = QuantifierEvaluator()
 
     # X_train, y_train, X_test, y_test = load_train_test_data("AedesQuinx")
     # quantifier_evaluator.evaluate_internal_quantifiers("AedesQuinx", X_train, y_train, X_test, y_test)
     # quantifier_evaluator.sort_evaluation_table()
     # quantifier_evaluator.save_evaluation_table()
 
-    processed_list = evaluation_table['dataset'].unique().tolist()
+    # processed_list = evaluation_table['dataset'].unique().tolist()
     dataset_list = [csv for csv in os.listdir("./datasets/") if csv.endswith(".csv")]
     for dataset in dataset_list:
         dataset_name = dataset.split(".csv")[0]
 
-        if dataset_name in processed_list:
-            continue
+        # if dataset_name in processed_list:
+        #     continue
 
         X_train, y_train, X_test, y_test = load_train_test_data(dataset_name)
         
-        quantifier_evaluator.evaluate_internal_quantifiers(dataset_name, X_train, y_train, X_test, y_test)
-        quantifier_evaluator.save_evaluation_table()
+        qtf_eval = quantifier_evaluator.evaluate_internal_quantifiers(dataset_name, X_train, y_train, X_test, y_test)
+        qtf_eval.to_csv(f"{dataset_name}.csv", index=False)
+        # quantifier_evaluator.save_evaluation_table()
 
     # quantifier_evaluator.aggregate_evaluation_table()
     # quantifier_evaluator.save_evaluation_table('./aggregated_evaluation_table.csv')

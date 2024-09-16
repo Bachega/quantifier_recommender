@@ -24,90 +24,50 @@ class QuantifierEvaluator:
                      "SORD",
                      "X"]
     
-    __evaluation_table_columns = ["quantifier",
-                                  "dataset",
-                                  "sample_size",
-                                  "real_prev",
-                                  "pred_prev",
-                                  "abs_error",
-                                  "run_time"]
+    __qtf_evaluation_table_columns = ["quantifier",
+                                      "dataset",
+                                      "sample_size",
+                                      "real_prev",
+                                      "pred_prev",
+                                      "abs_error",
+                                      "run_time"]
     
+    def __init__(self) -> None:
+        self.qtf_evaluation_table = pd.DataFrame(columns=self.__qtf_evaluation_table_columns)
 
-    def __init__(self, evaluation_table: pd.DataFrame = None) -> None:
-        if not evaluation_table is None:
-            self.evaluation_table = evaluation_table.copy(deep=True)
-        else:
-            self.evaluation_table = None
+    def __append_to_qtf_evaluation_table(self, quantifier, dataset_name, sample_size, alpha, pred_pos_prop, abs_error, run_time):        
+        self.qtf_evaluation_table.loc[len(self.qtf_evaluation_table.index)] = [quantifier,
+                                                                               dataset_name,
+                                                                               sample_size,
+                                                                               alpha,
+                                                                               pred_pos_prop,
+                                                                               abs_error,
+                                                                               run_time]
+    
+    def __aggregate_qtf_evaluation_table(self):
+        self.qtf_evaluation_table = self.qtf_evaluation_table.groupby(['quantifier', 'dataset'])[["abs_error", "run_time"]].aggregate('mean')
 
-        self._processed_datasets = {}
-        for quantifier in self.__quantifiers:
-            self._processed_datasets[quantifier] = []
+    # def save_evaluation_table(self, path = "./evaluation_table.csv"):
+    #     self.sort_evaluation_table()
+    #     self.evaluation_table.to_csv(path, index=False)
+    
+    # def load_evaluation_table(self, path = "./evaluation_table.csv"):
+    #     evaluation_table = pd.read_csv(path)
+    #     evaluation_table_columns = self.__evaluation_table_columns
+
+    #     i = 0
+    #     for column in evaluation_table.columns.to_list():
+    #         if column != evaluation_table_columns[i]:
+    #             raise Exception(f"Invalid columns.\nLoaded evaluation table needs the following columns: {evaluation_table_columns}.")
+    #         i += 1
         
-    def load_processed_datasets(self, path = "./data/processed_datasets.json"):
-        if(os.path.isfile(path)):
-            with open(path, "r") as file:
-                self._processed_datasets = json.load(file)
+    #     self.evaluation_table = evaluation_table
     
-
-    def save_processed_datasets(self,  path = "./data/processed_datasets.json"):
-            with open(path, 'w') as file:
-                json.dump(self._processed_datasets, file, indent=4, ensure_ascii=False)
-    
-
-    def __dataset_already_processed(self, quantifier, dataset_path):
-        self.load_processed_datasets()
-        return dataset_path in self._processed_datasets[quantifier]
-    
-
-    def __load_train_test_data(self, dataset_name):
-        train_df = pd.read_csv(f"./data/train_data/{dataset_name}.csv")
-        y_train = train_df.pop(train_df.columns[-1])
-        X_train = train_df
-
-        test_df = pd.read_csv(f"./data/test_data/{dataset_name}.csv")
-        y_test = test_df.pop(test_df.columns[-1])
-        X_test = test_df
-
-        return X_train.to_numpy(), y_train.to_numpy(), X_test.to_numpy(), y_test.to_numpy()
-
-
-    def __append_to_evaluation_table(self, quantifier, dataset_name, sample_size, alpha, pred_pos_prop, abs_error, run_time):
-        if self.evaluation_table is None:
-            self.evaluation_table = pd.DataFrame(columns=self.__evaluation_table_columns)
-        
-        self.evaluation_table.loc[len(self.evaluation_table.index)] = [quantifier,
-                                                                       dataset_name,
-                                                                       sample_size,
-                                                                       alpha,
-                                                                       pred_pos_prop,
-                                                                       abs_error,
-                                                                       run_time]
-    
-    def aggregate_evaluation_table(self):
-        self.evaluation_table = self.evaluation_table.groupby(['quantifier', 'dataset'])[["abs_error", "run_time"]].aggregate('mean')
-
-    def save_evaluation_table(self, path = "./evaluation_table.csv"):
-        self.sort_evaluation_table()
-        self.evaluation_table.to_csv(path, index=False)
-    
-    def load_evaluation_table(self, path = "./evaluation_table.csv"):
-        evaluation_table = pd.read_csv(path)
-        evaluation_table_columns = self.__evaluation_table_columns
-
-        i = 0
-        for column in evaluation_table.columns.to_list():
-            if column != evaluation_table_columns[i]:
-                raise Exception(f"Invalid columns.\nLoaded evaluation table needs the following columns: {evaluation_table_columns}.")
-            i += 1
-        
-        self.evaluation_table = evaluation_table
-    
-    def sort_evaluation_table(self):
-        self.evaluation_table.sort_values(by=['quantifier', 'dataset'], inplace=True)
-
+    # def __sort_qtf_evaluation_table(self):
+    #     self.qtf_evaluation_table.sort_values(by=['quantifier', 'dataset'], inplace=True)
 
     def evaluate_internal_quantifiers(self, dataset_name, X_train, y_train, X_test, y_test):
-        # X_train, y_train, X_test, y_test = self.__load_train_test_data(dataset_name)
+        self.qtf_evaluation_table = self.qtf_evaluation_table.iloc[0:0]
         
         clf = None
         try:
@@ -191,12 +151,15 @@ class QuantifierEvaluator:
                         abs_error_dict[quantifier].append(abs_error)
                 
                 for quantifier in abs_error_dict.keys():
-                    self.__append_to_evaluation_table(quantifier,
-                                                      dataset_name,
-                                                      sample_size,
-                                                      alpha,
-                                                      pred_pos_prop,
-                                                      np.mean(abs_error_dict[quantifier]),
-                                                      np.min(run_time_dict[quantifier]))
+                    self.__append_to_qtf_evaluation_table(quantifier,
+                                                          dataset_name,
+                                                          sample_size,
+                                                          alpha,
+                                                          pred_pos_prop,
+                                                          np.mean(abs_error_dict[quantifier]),
+                                                          np.min(run_time_dict[quantifier]))
                     abs_error_dict[quantifier].clear()
                     run_time_dict[quantifier].clear()
+        
+        self.__sort_qtf_evaluation_table()
+        return self.qtf_evaluation_table
