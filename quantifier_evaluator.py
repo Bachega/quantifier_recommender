@@ -33,13 +33,16 @@ class QuantifierEvaluator:
                                   "run_time"]
     
 
-    def __init__(self) -> None:
-        self.evaluation_table = None
+    def __init__(self, evaluation_table: pd.DataFrame = None) -> None:
+        if not evaluation_table is None:
+            self.evaluation_table = evaluation_table.copy(deep=True)
+        else:
+            self.evaluation_table = None
+
         self._processed_datasets = {}
         for quantifier in self.__quantifiers:
             self._processed_datasets[quantifier] = []
         
-
     def load_processed_datasets(self, path = "./data/processed_datasets.json"):
         if(os.path.isfile(path)):
             with open(path, "r") as file:
