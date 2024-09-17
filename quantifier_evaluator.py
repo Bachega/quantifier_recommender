@@ -44,8 +44,8 @@ class QuantifierEvaluator:
                                                                                abs_error,
                                                                                run_time]
     
-    def __aggregate_qtf_evaluation_table(self):
-        self.qtf_evaluation_table = self.qtf_evaluation_table.groupby(['quantifier', 'dataset'])[["abs_error", "run_time"]].aggregate('mean')
+    # def __aggregate_qtf_evaluation_table(self):
+    #     self.qtf_evaluation_table = self.qtf_evaluation_table.groupby(['quantifier', 'dataset'])[["abs_error", "run_time"]].aggregate('mean')
 
     # def save_evaluation_table(self, path = "./evaluation_table.csv"):
     #     self.sort_evaluation_table()
@@ -67,7 +67,7 @@ class QuantifierEvaluator:
     #     self.qtf_evaluation_table.sort_values(by=['quantifier', 'dataset'], inplace=True)
 
     def evaluate_internal_quantifiers(self, dataset_name, X_train, y_train, X_test, y_test):
-        self.qtf_evaluation_table = self.qtf_evaluation_table.iloc[0:0]
+        self.qtf_evaluation_table = pd.DataFrame(columns=self.__qtf_evaluation_table_columns)
         
         clf = None
         try:
@@ -104,7 +104,7 @@ class QuantifierEvaluator:
                 # pdb.set_trace()
 
                 # Repeats the same experiment (to reduce variance)
-                for iter in range(niterations):
+                for iter in range(1):#niterations):
                     pos_size = int(round(sample_size * alpha, 2))
                     neg_size = sample_size - pos_size
                     
@@ -161,5 +161,5 @@ class QuantifierEvaluator:
                     abs_error_dict[quantifier].clear()
                     run_time_dict[quantifier].clear()
         
-        self.__sort_qtf_evaluation_table()
+        # self.__sort_qtf_evaluation_table()
         return self.qtf_evaluation_table

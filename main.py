@@ -26,7 +26,17 @@ if __name__ == "__main__":
 
     # generate_train_test_data("./datasets")
 
-    quantifier_evaluator = QuantifierEvaluator()
+    # quantifier_evaluator = QuantifierEvaluator()
+
+    quantifier_recommender = QuantifierRecommender()
+
+    quantifier_recommender.construct_meta_table(datasets_path="./datasets/",
+                                                train_data_path="./data/train_data/",
+                                                test_data_path="./data/test_data/",
+                                                supervised=True)
+    
+    quantifier_recommender.evaluation_table.to_csv("./recommender_evaluation_table.csv", index=False)
+    quantifier_recommender.meta_features_table.to_csv("./recommender_meta_features_table.csv", index=False)
 
     # X_train, y_train, X_test, y_test = load_train_test_data("AedesQuinx")
     # quantifier_evaluator.evaluate_internal_quantifiers("AedesQuinx", X_train, y_train, X_test, y_test)
@@ -34,18 +44,18 @@ if __name__ == "__main__":
     # quantifier_evaluator.save_evaluation_table()
 
     # processed_list = evaluation_table['dataset'].unique().tolist()
-    dataset_list = [csv for csv in os.listdir("./datasets/") if csv.endswith(".csv")]
-    for dataset in dataset_list:
-        dataset_name = dataset.split(".csv")[0]
+    # dataset_list = [csv for csv in os.listdir("./datasets/") if csv.endswith(".csv")]
+    # for dataset in dataset_list:
+    #     dataset_name = dataset.split(".csv")[0]
 
-        # if dataset_name in processed_list:
-        #     continue
+    #     # if dataset_name in processed_list:
+    #     #     continue
 
-        X_train, y_train, X_test, y_test = load_train_test_data(dataset_name)
+    #     X_train, y_train, X_test, y_test = load_train_test_data(dataset_name)
         
-        qtf_eval = quantifier_evaluator.evaluate_internal_quantifiers(dataset_name, X_train, y_train, X_test, y_test)
-        qtf_eval.to_csv(f"{dataset_name}.csv", index=False)
-        # quantifier_evaluator.save_evaluation_table()
+    #     qtf_eval = quantifier_evaluator.evaluate_internal_quantifiers(dataset_name, X_train, y_train, X_test, y_test)
+    #     qtf_eval.to_csv(f"{dataset_name}.csv", index=False)
+    #     # quantifier_evaluator.save_evaluation_table()
 
     # quantifier_evaluator.aggregate_evaluation_table()
     # quantifier_evaluator.save_evaluation_table('./aggregated_evaluation_table.csv')

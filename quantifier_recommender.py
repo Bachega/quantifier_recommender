@@ -37,18 +37,6 @@ class QuantifierRecommender:
 
         self.meta_features_table.loc[len(self.meta_features_table.index)] = features
     
-    def __evaluate_and_append(self, dataset_name, X_train, y_train, X_test, y_test):
-        new_evaluation = self.quantifier_evaluator.evaluate_internal_quantifiers(dataset_name,
-                                                                                 X_train,
-                                                                                 y_train,
-                                                                                 X_test,
-                                                                                 y_test)
-        
-        if self.evaluation_table is None:
-            self.evaluation_table = new_evaluation.copy(deep=True)
-        else:
-            self.evaluation_table = pd.concat([self.evaluation_table, new_evaluation], ignore_index=True)
-
     def load_meta_table(self, meta_table_path):
         self.meta_table.read_csv(meta_table_path)
     
@@ -59,7 +47,10 @@ class QuantifierRecommender:
                              test_data_path: str,  supervised: bool = False):
         dataset_list = [csv for csv in os.listdir(datasets_path) if csv.endswith(".csv")]
 
-        for dataset in dataset_list:
+        # Appending the evaluations to a list and then concatenating them
+        # to a pandas dataframe is O(n)
+        evaluation_list = []
+        for i, dataset in enumerate(dataset_list):
             # Meta-Features Extraction
             dt = pd.read_csv(datasets_path + dataset)
             dt = dt.dropna()
@@ -75,11 +66,20 @@ class QuantifierRecommender:
             # Quantifiers evaluation
             dataset_name = dataset.split(".csv")[0]
             X_train, y_train, X_test, y_test = load_train_test_data(dataset_name, train_data_path, test_data_path)
-            self.__evaluate_and_append(dataset_name, X_train, y_train, X_test, y_test)
-
+            evaluation_list.append(self.quantifier_evaluator.evaluate_internal_quantifiers(dataset_name,
+                                                                                           X_train,
+                                                                                           y_train,
+                                                                                           X_test,
+                                                                                           y_test))
+            if i == 2:
+                break
+            
         # Normalize the extracted meta-features and insert them in the Meta-table
         self.meta_table = self.__get_normalized_meta_features_table()
 
+        # Concatenate all the evaluations into a single evaluation table
+        self.evaluation_table = pd.concat(evaluation_list, axis=0)
+
         # Sort and aggregate the quantifiers evaluations
         self.evaluation_table.sort_values(by=['quantifier', 'dataset'], inplace=True)
-
+        self.evaluation_table = self.evaluation_table.groupby(['quantifier', 'dataset'])[["abs_error", "run_time"]].aggregate('mean')
