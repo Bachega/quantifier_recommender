@@ -127,7 +127,7 @@ class QuantifierEvaluator:
 
                         
                         #.............Calling of Methods..................................................
-                        start = time.time()
+                        start = time.perf_counter()
                         pred_pos_prop = apply_quantifier(qntMethod=quantifier,
                                                         clf=calib_clf,
                                                         scores=scores,
@@ -141,7 +141,7 @@ class QuantifierEvaluator:
                                                         test_data=test_sample,
                                                         test_quapy=te_quapy,
                                                         external_qnt=external_qnt) #y_test=test_label
-                        stop = time.time()
+                        stop = time.perf_counter()
                         run_time_dict[quantifier].append(stop - start)
 
                         pred_pos_prop = np.round(pred_pos_prop,2)  #predicted class proportion

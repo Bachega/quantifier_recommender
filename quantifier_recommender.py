@@ -82,4 +82,10 @@ class QuantifierRecommender:
 
         # Sort and aggregate the quantifiers evaluations
         self.evaluation_table.sort_values(by=['quantifier', 'dataset'], inplace=True)
-        self.evaluation_table = self.evaluation_table.groupby(['quantifier', 'dataset'])[["abs_error", "run_time"]].aggregate('mean')
+
+        self.evaluation_table = self.evaluation_table.groupby(["quantifier", "dataset"]).agg(
+            abs_error = pd.NamedAgg(column="abs_error", aggfunc="mean"),
+            run_time = pd.NamedAgg(column="run_time", aggfunc="mean")
+        )
+        self.evaluation_table = self.evaluation_table.reset_index()
+        
