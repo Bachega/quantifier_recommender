@@ -19,6 +19,7 @@ class QuantifierRecommender:
         self.meta_table = meta_table
         self.meta_features_table = None
         self.evaluation_table = None
+        self.recommender_list = []
         self.mfe = MetaFeatureExtractor()
         self.quantifier_evaluator = QuantifierEvaluator()
      
@@ -87,5 +88,5 @@ class QuantifierRecommender:
             abs_error = pd.NamedAgg(column="abs_error", aggfunc="mean"),
             run_time = pd.NamedAgg(column="run_time", aggfunc="mean")
         )
-        self.evaluation_table = self.evaluation_table.reset_index()
+        # self.evaluation_table = self.evaluation_table.reset_index()
         
