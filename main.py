@@ -35,8 +35,8 @@ if __name__ == "__main__":
                                                 test_data_path="./data/test_data/",
                                                 supervised=True)
     
-    quantifier_recommender.evaluation_table.to_csv("./recommender_evaluation_table2.csv", index=False)
-    quantifier_recommender.meta_features_table.to_csv("./recommender_meta_features_table2.csv", index=False)
+    quantifier_recommender.save_evaluation_table()
+    quantifier_recommender.save_meta_features_table()
 
     # X_train, y_train, X_test, y_test = load_train_test_data("AedesQuinx")
     # quantifier_evaluator.evaluate_internal_quantifiers("AedesQuinx", X_train, y_train, X_test, y_test)

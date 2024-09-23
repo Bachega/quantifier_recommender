@@ -43,30 +43,17 @@ class QuantifierEvaluator:
                                                                                pred_pos_prop,
                                                                                abs_error,
                                                                                run_time]
-    
-    # def __aggregate_qtf_evaluation_table(self):
-    #     self.qtf_evaluation_table = self.qtf_evaluation_table.groupby(['quantifier', 'dataset'])[["abs_error", "run_time"]].aggregate('mean')
 
-    # def save_evaluation_table(self, path = "./evaluation_table.csv"):
-    #     self.sort_evaluation_table()
-    #     self.evaluation_table.to_csv(path, index=False)
-    
-    # def load_evaluation_table(self, path = "./evaluation_table.csv"):
-    #     evaluation_table = pd.read_csv(path)
-    #     evaluation_table_columns = self.__evaluation_table_columns
-
-    #     i = 0
-    #     for column in evaluation_table.columns.to_list():
-    #         if column != evaluation_table_columns[i]:
-    #             raise Exception(f"Invalid columns.\nLoaded evaluation table needs the following columns: {evaluation_table_columns}.")
-    #         i += 1
+    def evaluate_quantifiers(self, dataset_name, X_train, y_train, X_test, y_test, quantifiers = None):
+        if quantifiers is None:
+            quantifiers = self.__quantifiers
         
-    #     self.evaluation_table = evaluation_table
-    
-    # def __sort_qtf_evaluation_table(self):
-    #     self.qtf_evaluation_table.sort_values(by=['quantifier', 'dataset'], inplace=True)
+        if not isinstance(quantifiers, list):
+            raise TypeError("Argument 'quantifiers' needs to be a 'list' of quantifiers to evaluate")
 
-    def evaluate_internal_quantifiers(self, dataset_name, X_train, y_train, X_test, y_test):
+        if not set(quantifiers).issubset(self.__quantifiers):
+            raise ValueError(f"List of quantifiers contains invalid values (like names of non implemented quantifiers). Available quantifiers are {self.__quantifiers}")
+
         self.qtf_evaluation_table = pd.DataFrame(columns=self.__qtf_evaluation_table_columns)
         
         clf = None
@@ -120,7 +107,7 @@ class QuantifierEvaluator:
                     n_pos_sample_test = list(test_label).count(1) #Counting num of actual positives in test sample
                     calcultd_pos_prop = round(n_pos_sample_test/len(sample_test), 2) #actual pos class prevalence in generated sample
 
-                    for quantifier in self.__quantifiers:
+                    for quantifier in quantifiers:
                         #..............Test Sample QUAPY exp...........................
                         te_quapy = None
                         external_qnt = None
