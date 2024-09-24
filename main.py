@@ -1,5 +1,6 @@
 import pandas as pd
 import os
+import pdb
 
 from quantifier_recommender import QuantifierRecommender
 from quantifier_evaluator import QuantifierEvaluator
@@ -17,6 +18,13 @@ def load_train_test_data(dataset_name):
 
     return X_train.to_numpy(), y_train.to_numpy(), X_test.to_numpy(), y_test.to_numpy()
 
+def load_test_data(dataset_name):
+    test_df = pd.read_csv(f"./data/test_data/{dataset_name}.csv")
+    y_test = test_df.pop(test_df.columns[-1])
+    X_test = test_df
+
+    return X_test.to_numpy(), y_test.to_numpy()
+
 if __name__ == "__main__":
     dataset_path = "./datasets"
     # recommender = QuantifierRecommender(supervised=True)
@@ -29,14 +37,26 @@ if __name__ == "__main__":
     # quantifier_evaluator = QuantifierEvaluator()
 
     quantifier_recommender = QuantifierRecommender()
-
     quantifier_recommender.construct_meta_table(datasets_path="./datasets/",
                                                 train_data_path="./data/train_data/",
                                                 test_data_path="./data/test_data/",
                                                 supervised=True)
+    quantifier_recommender.fit()
+
+    X_test, y_test = load_test_data("BNG")
+    ranking = quantifier_recommender.predict(X_test)
+
+    pdb.set_trace()
+
     
-    quantifier_recommender.save_evaluation_table()
-    quantifier_recommender.save_meta_features_table()
+    # quantifier_recommender.save_evaluation_table()
+    # quantifier_recommender.save_meta_features_table()
+
+    
+
+
+
+    
 
     # X_train, y_train, X_test, y_test = load_train_test_data("AedesQuinx")
     # quantifier_evaluator.evaluate_internal_quantifiers("AedesQuinx", X_train, y_train, X_test, y_test)

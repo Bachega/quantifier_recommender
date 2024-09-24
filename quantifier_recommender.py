@@ -21,7 +21,7 @@ class QuantifierRecommender:
 
         self.evaluation_table = None
         
-        self.recommender_dict = None
+        self.recommender_dict = {}
         self.is_meta_table_constructed = False
 
         self.mfe = MetaFeatureExtractor()
@@ -30,9 +30,13 @@ class QuantifierRecommender:
     def __get_normalized_meta_features_table(self):
         columns = self._unscaled_meta_features_table.columns
         data = self._unscaled_meta_features_table.values
-        scaler = MinMaxScaler()
-        scaler.fit(data)
-        return pd.DataFrame(scaler.transform(data), columns=columns)
+
+        self._fitted_scaler = MinMaxScaler()
+        self._fitted_scaler.fit(data)
+
+        scaled_meta_features_table = pd.DataFrame(self._fitted_scaler.transform(data), columns=columns)
+        scaled_meta_features_table.index = self._unscaled_meta_features_table.index
+        return scaled_meta_features_table
     
     def __extract_and_append(self, dataset_name, X, y = None):
         columns, features = self.mfe.extract_meta_features(X, y)
@@ -93,20 +97,38 @@ class QuantifierRecommender:
         # Concatenate all the evaluations into a single evaluation table
         # and then sort and aggregate the quantifiers evaluations
         self.evaluation_table = pd.concat(evaluation_list, axis=0)
-
         self.evaluation_table.sort_values(by=['quantifier', 'dataset'], inplace=True)
-
-        self.evaluation_table = self.evaluation_table.groupby(["dataset", "quantifier"]).agg(
+        self.evaluation_table = self.evaluation_table.groupby(["quantifier", "dataset"]).agg(
             abs_error = pd.NamedAgg(column="abs_error", aggfunc="mean"),
             run_time = pd.NamedAgg(column="run_time", aggfunc="mean")
         )
 
         self.is_meta_table_constructed = True
-    
+
     def fit(self):
         if not self.is_meta_table_constructed:
             raise Exception("Meta-table needs to be constructed before the recommender can be fitted")
         
+        X_train = self.meta_features_table.values
+        y_train = None
+        for quantifier in self.evaluation_table.index.levels[0].tolist():
+            y_train = self.evaluation_table.loc[quantifier]['abs_error'].values
+            self.recommender_dict[quantifier] = RandomForestRegressor()
+            self.recommender_dict[quantifier].fit(X_train, y_train)
+    
+    def predict(self, X_test, y_test = None) -> dict:
+        _, _X_test = self.mfe.extract_meta_features(X_test, y_test)
+        _X_test = self._fitted_scaler.fit_transform(np.array(_X_test).reshape(1, -1))
 
+        ranking = {key: None for key in range(1, len(self.recommender_dict.keys())+1)}
+        
+        result = pd.Series(index = list(self.recommender_dict.keys()))
+        for quantifier, recommender in self.recommender_dict.items():
+            result[quantifier] = recommender.predict(_X_test)
 
-
+        i = 1
+        for index, value in result.sort_values().items():
+            ranking[i] = [index, value]
+            i += 1
+        
+        return ranking
