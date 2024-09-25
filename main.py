@@ -18,12 +18,15 @@ def load_train_test_data(dataset_name):
 
     return X_train.to_numpy(), y_train.to_numpy(), X_test.to_numpy(), y_test.to_numpy()
 
-def load_test_data(dataset_name):
+def load_test_data(dataset_name, supervised = True):
     test_df = pd.read_csv(f"./data/test_data/{dataset_name}.csv")
     y_test = test_df.pop(test_df.columns[-1])
     X_test = test_df
 
-    return X_test.to_numpy(), y_test.to_numpy()
+    if supervised:
+        return X_test.to_numpy(), y_test.to_numpy()
+    
+    return X_test.to_numpy()
 
 if __name__ == "__main__":
     dataset_path = "./datasets"
@@ -36,15 +39,34 @@ if __name__ == "__main__":
 
     # quantifier_evaluator = QuantifierEvaluator()
 
-    quantifier_recommender = QuantifierRecommender()
-    quantifier_recommender.construct_meta_table(datasets_path="./datasets/",
-                                                train_data_path="./data/train_data/",
-                                                test_data_path="./data/test_data/",
-                                                supervised=True)
-    quantifier_recommender.fit()
+    supervised_quantifier_recommender = QuantifierRecommender(supervised=True)
+    unsupervised_quantifier_recommender = QuantifierRecommender(supervised=False)
+    
+    supervised_quantifier_recommender.fit(datasets_path="./datasets/",
+                                          train_data_path="./data/train_data/",
+                                          test_data_path="./data/test_data/")
+    
+    unsupervised_quantifier_recommender.fit(datasets_path="./datasets/",
+                                            train_data_path="./data/train_data/",
+                                            test_data_path="./data/test_data/")
+    
+    X_test, y_test = load_test_data("BNG", supervised=True)
+    s_ranking = supervised_quantifier_recommender.predict(X_test, y_test)
+    
+    X_test = load_test_data("BNG", supervised=False)
+    u_ranking = unsupervised_quantifier_recommender.predict(X_test)
 
-    X_test, y_test = load_test_data("BNG")
-    ranking = quantifier_recommender.predict(X_test)
+    supervised_quantifier_recommender.persist_model("s_qtf_recommender.pkl")
+    unsupervised_quantifier_recommender.persist_model("u_qtf_recommender.pkl")
+
+    s_qtf_rec = QuantifierRecommender.load_model("s_qtf_recommender.pkl")
+    u_qtf_rec = QuantifierRecommender.load_model("u_qtf_recommender.pkl")
+
+    X_test, y_test = load_test_data("BNG", supervised=True)
+    new_s_ranking = s_qtf_rec.predict(X_test, y_test)
+
+    X_test = load_test_data("BNG", supervised=False)
+    new_u_ranking = u_qtf_rec.predict(X_test)
 
     pdb.set_trace()
 

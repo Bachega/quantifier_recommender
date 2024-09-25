@@ -16,6 +16,8 @@ from utils_ import load_train_test_data
     
 class QuantifierRecommender:
     def __init__(self, supervised: bool = True):
+        self.__supervised = supervised
+
         self._unscaled_meta_features_table = None
         self.meta_features_table = None
 
@@ -59,8 +61,19 @@ class QuantifierRecommender:
     def save_evaluation_table(self, evaluation_table_path: str = "./recommender_data/evaluation-table.csv"):
         self.evaluation_table.to_csv(evaluation_table_path)
 
-    def construct_meta_table(self, datasets_path: str, train_data_path: str,
-                             test_data_path: str,  supervised: bool = False):
+    def persist_model(self, path: str):
+        with open(path, "wb") as file_handler:
+            pickle.dump(self, file_handler)
+    
+    @staticmethod
+    def load_model(path: str):
+        quantifier_recommender = None
+        with open(path, "rb") as file_handler:
+            quantifier_recommender = pickle.load(file_handler)
+        
+        return quantifier_recommender
+
+    def fit(self, datasets_path: str, train_data_path: str, test_data_path: str):
         dataset_list = [csv for csv in os.listdir(datasets_path) if csv.endswith(".csv")]
 
         # Appending the evaluations to a list and then concatenating them
@@ -73,7 +86,7 @@ class QuantifierRecommender:
             dt = pd.read_csv(datasets_path + dataset)
             dt = dt.dropna()
             
-            if supervised:
+            if self.__supervised:
                 y = dt.pop('class')
             else:
                 y = None
@@ -102,12 +115,6 @@ class QuantifierRecommender:
             abs_error = pd.NamedAgg(column="abs_error", aggfunc="mean"),
             run_time = pd.NamedAgg(column="run_time", aggfunc="mean")
         )
-
-        self.is_meta_table_constructed = True
-
-    def fit(self):
-        if not self.is_meta_table_constructed:
-            raise Exception("Meta-table needs to be constructed before the recommender can be fitted")
         
         X_train = self.meta_features_table.values
         y_train = None
@@ -117,15 +124,18 @@ class QuantifierRecommender:
             self.recommender_dict[quantifier].fit(X_train, y_train)
     
     def predict(self, X_test, y_test = None) -> dict:
-        _, _X_test = self.mfe.extract_meta_features(X_test, y_test)
+        if self.__supervised:
+            _, _X_test = self.mfe.extract_meta_features(X_test, y_test)
+        else:
+            _, _X_test = self.mfe.extract_meta_features(X_test)
+
         _X_test = self._fitted_scaler.fit_transform(np.array(_X_test).reshape(1, -1))
 
-        ranking = {key: None for key in range(1, len(self.recommender_dict.keys())+1)}
-        
         result = pd.Series(index = list(self.recommender_dict.keys()))
         for quantifier, recommender in self.recommender_dict.items():
             result[quantifier] = recommender.predict(_X_test)
 
+        ranking = {key: None for key in range(1, len(self.recommender_dict.keys())+1)}
         i = 1
         for index, value in result.sort_values().items():
             ranking[i] = [index, value]
