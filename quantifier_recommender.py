@@ -1,14 +1,10 @@
 import os
 import numpy as np
 import pandas as pd
+import joblib
+
 from sklearn.ensemble import RandomForestRegressor
-from scipy.stats import friedmanchisquare
-import scikit_posthocs as sp
-import random
-import pdb
-from pymfe.mfe import MFE
 from sklearn.preprocessing import MinMaxScaler
-import pickle
 
 from meta_feature_extractor import MetaFeatureExtractor
 from quantifier_evaluator import QuantifierEvaluator
@@ -63,13 +59,13 @@ class QuantifierRecommender:
 
     def persist_model(self, path: str):
         with open(path, "wb") as file_handler:
-            pickle.dump(self, file_handler)
+            joblib.dump(self, file_handler)
     
     @staticmethod
     def load_model(path: str):
         quantifier_recommender = None
         with open(path, "rb") as file_handler:
-            quantifier_recommender = pickle.load(file_handler)
+            quantifier_recommender = joblib.load(file_handler)
         
         return quantifier_recommender
 
