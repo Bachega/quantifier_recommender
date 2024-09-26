@@ -91,7 +91,8 @@ class QuantifierEvaluator:
                 # pdb.set_trace()
 
                 # Repeats the same experiment (to reduce variance)
-                for iter in range(1):#niterations):
+                # for iter in range(1):
+                for iter in range(niterations):
                     pos_size = int(round(sample_size * alpha, 2))
                     neg_size = sample_size - pos_size
                     

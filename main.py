@@ -35,7 +35,11 @@ if __name__ == "__main__":
     # supervised_quantifier_recommender.fit(datasets_path="./datasets/",
     #                                       train_data_path="./data/train_data/",
     #                                       test_data_path="./data/test_data/")
+    # supervised_quantifier_recommender.persist_model("supervised_quantifier_recommender.pkl")
     
+
+
+
     # unsupervised_quantifier_recommender.fit(datasets_path="./datasets/",
     #                                         train_data_path="./data/train_data/",
     #                                         test_data_path="./data/test_data/")
@@ -58,6 +62,12 @@ if __name__ == "__main__":
     # X_test = load_test_data("BNG", supervised=False)
     # new_u_ranking = u_qtf_rec.predict(X_test)
 
-    qtf_rec = QuantifierRecommender.load_model("s_qtf_recommender.pkl")
+    # qtf_rec = QuantifierRecommender.load_model("s_qtf_recommender.pkl")
+
+
+    supervised_quantifier_recommender = QuantifierRecommender.load_model("supervised_quantifier_recommender.pkl")
+
+    recommender_evaluation_table = supervised_quantifier_recommender.leave_one_out_evaluation("recommender_data/recommender_evaluation_table_2.csv")
+    old_recommender_evaluation_table = supervised_quantifier_recommender.OLD_leave_one_out_evaluation("recommender_data/OLD_recommender_evaluation_table_2.csv")
     
     pdb.set_trace()

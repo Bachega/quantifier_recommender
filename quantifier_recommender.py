@@ -97,8 +97,8 @@ class QuantifierRecommender:
                                                                                     y_train,
                                                                                     X_test,
                                                                                     y_test))
-            if i == 2:
-                break
+            # if i == 5:
+            #     break
             
         # Normalize the extracted meta-features
         self.meta_features_table = self.__get_normalized_meta_features_table()
@@ -140,4 +140,53 @@ class QuantifierRecommender:
         return ranking
 
     # Evaluate Quantifier Recommender with Leave-One-Out
-    # def _leave_one_out(self):
+    def leave_one_out_evaluation(self, path: str = None):
+        recommender_evaluation_table = pd.DataFrame(columns=["predicted_error", "true_error"], index=self.evaluation_table.index)
+        for quantifier, recommender in self.recommender_dict.items():
+            recommender_ = None
+            scaler = MinMaxScaler()
+            if isinstance(recommender, RandomForestRegressor):
+                recommender_ = RandomForestRegressor()
+
+            for dataset in self.evaluation_table.index.levels[1]:
+                unscaled_X_test = self._unscaled_meta_features_table.loc[dataset].values
+                y_test = self.evaluation_table.loc[quantifier, dataset]['abs_error']
+
+                unscaled_X_train = self._unscaled_meta_features_table.drop(index=dataset).values
+                y_train = self.evaluation_table.loc[quantifier].drop(index=dataset)['abs_error'].values
+
+                scaler.fit(unscaled_X_train)
+                X_train = scaler.transform(unscaled_X_train)
+                recommender_.fit(X_train, y_train)
+
+                X_test = scaler.fit_transform(np.array(unscaled_X_test).reshape(1, -1))
+                predicted_error = recommender_.predict(X_test)[0]
+
+                recommender_evaluation_table.loc[(quantifier, dataset)] = [predicted_error, y_test]
+        
+        if not path is None:
+            recommender_evaluation_table.to_csv(path)
+        return recommender_evaluation_table
+    
+    def OLD_leave_one_out_evaluation(self, path: str = None):
+        recommender_evaluation_table = pd.DataFrame(columns=["predicted_error", "true_error"], index=self.evaluation_table.index)
+        for quantifier, recommender in self.recommender_dict.items():
+            recommender_ = None
+            if isinstance(recommender, RandomForestRegressor):
+                recommender_ = RandomForestRegressor()
+
+            for dataset in self.evaluation_table.index.levels[1]:
+                X_test = self.meta_features_table.loc[dataset].values
+                y_test = self.evaluation_table.loc[quantifier, dataset]['abs_error']
+
+                X_train = self.meta_features_table.drop(index=dataset).values
+                y_train = self.evaluation_table.loc[quantifier].drop(index=dataset)['abs_error'].values
+
+                recommender_.fit(X_train, y_train)
+                predicted_error = recommender_.predict(np.array(X_test).reshape(1, -1))[0]
+
+                recommender_evaluation_table.loc[(quantifier, dataset)] = [predicted_error, y_test]
+        
+        if not path is None:
+            recommender_evaluation_table.to_csv(path)
+        return recommender_evaluation_table
