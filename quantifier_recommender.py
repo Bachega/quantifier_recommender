@@ -45,18 +45,40 @@ class QuantifierRecommender:
         # self.meta_features_table.loc[len(self.meta_features_table.index)] = features
         self._unscaled_meta_features_table.loc[dataset_name] = features
     
-    def load_meta_features_table(self, meta_table_path):
-        self.meta_features_table.read_csv(meta_table_path)
-    
-    def save_meta_features_table(self, meta_table_path: str = "./recommender_data/meta-table.csv"):
-        self.meta_features_table.to_csv(meta_table_path)
+    def save_meta_table(self, meta_features_table_path: str, evaluation_table_path: str):
+        if not ".csv" in meta_features_table_path:
+            meta_features_table_path += ".csv"
+        unscaled_meta_features_table_path = meta_features_table_path.replace(".csv", "_unscaled.csv")
+        
+        if not ".csv" in evaluation_table_path:
+            evaluation_table_path += ".csv"
 
-    def load_evaluation_table(self, evaluation_table_path):
-        self.evaluation_table.read_csv(evaluation_table_path)
-    
-    def save_evaluation_table(self, evaluation_table_path: str = "./recommender_data/evaluation-table.csv"):
+        self.meta_features_table.to_csv(meta_features_table_path)
+        self._unscaled_meta_features_table.to_csv(unscaled_meta_features_table_path)
         self.evaluation_table.to_csv(evaluation_table_path)
-
+    
+    def load_meta_table(self, meta_features_table_path: str, evaluation_table_path: str):        
+        if not ".csv" in meta_features_table_path:
+            unscaled_meta_features_table_path += "_unscaled.csv"
+            meta_features_table_path += ".csv"
+        unscaled_meta_features_table_path = meta_features_table_path.replace(".csv", "_unscaled.csv")
+        
+        if not ".csv" in evaluation_table_path:
+            evaluation_table_path += ".csv"
+        
+        self.meta_features_table = pd.read_csv(meta_features_table_path, index_col=0)
+        self._unscaled_meta_features_table = pd.read_csv(unscaled_meta_features_table_path, index_col=0)
+        self.evaluation_table = pd.read_csv(evaluation_table_path, index_col=[0, 1])
+    
+    def load_meta_table_and_fit(self, meta_fetaures_table_path: str, evaluation_table_path: str):
+        self.load_meta_table(meta_fetaures_table_path, evaluation_table_path)
+        
+        X_train = self.meta_features_table.values
+        for quantifier in self.evaluation_table.index.levels[0].tolist():
+            y_train = self.evaluation_table.loc[quantifier]['abs_error'].values
+            self.recommender_dict[quantifier] = RandomForestRegressor()
+            self.recommender_dict[quantifier].fit(X_train, y_train)
+    
     def persist_model(self, path: str):
         with open(path, "wb") as file_handler:
             joblib.dump(self, file_handler)
