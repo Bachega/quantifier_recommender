@@ -1,11 +1,19 @@
 import pandas as pd
 import os
 import pdb
+import time
+import timeit
 
 from quantifier_recommender import QuantifierRecommender
 from quantifier_evaluator import QuantifierEvaluator
 from utils_ import generate_train_test_data
 from quantifier_evaluator import QuantifierEvaluator
+
+from sklearn.ensemble import RandomForestRegressor
+from sklearn.linear_model import LinearRegression
+from sklearn.base import is_regressor
+
+from k_quantifier import KQuantifier
 
 def load_train_test_data(dataset_name):
     train_df = pd.read_csv(f"./data/train_data/{dataset_name}.csv")
@@ -27,6 +35,9 @@ def load_test_data(dataset_name, supervised = True):
         return X_test.to_numpy(), y_test.to_numpy()
     
     return X_test.to_numpy()
+
+def predict_wrapper():
+    q.predict(X_test, y_test)
 
 if __name__ == "__main__":
     # supervised_quantifier_recommender = QuantifierRecommender(supervised=True)
@@ -65,9 +76,50 @@ if __name__ == "__main__":
     # qtf_rec = QuantifierRecommender.load_model("s_qtf_recommender.pkl")
 
 
-    supervised_quantifier_recommender = QuantifierRecommender.load_model("supervised_quantifier_recommender.pkl")
+    # supervised_quantifier_recommender = QuantifierRecommender.load_model("supervised_quantifier_recommender.pkl")
 
-    recommender_evaluation_table = supervised_quantifier_recommender.leave_one_out_evaluation("recommender_data/recommender_evaluation_table_2.csv")
-    old_recommender_evaluation_table = supervised_quantifier_recommender.OLD_leave_one_out_evaluation("recommender_data/OLD_recommender_evaluation_table_2.csv")
     
-    pdb.set_trace()
+    # qtf_rec_randomforests = QuantifierRecommender(supervised=True, recommender_model=RandomForestRegressor())
+    # qtf_rec_linear = QuantifierRecommender(supervised=True, recommender_model=LinearRegression())
+
+    # qtf_rec_randomforests.fit(datasets_path="./datasets/",
+    #                           train_data_path="./data/train_data/",
+    #                           test_data_path="./data/test_data/")
+    
+    # qtf_rec_linear.fit(datasets_path="./datasets/",
+    #                       train_data_path="./data/train_data/",
+    #                       test_data_path="./data/test_data/")
+       
+    # qtf_rec_randomforests.save_meta_table("recommender_data/random_forests_meta_features_table.csv", "recommender_data/random_forests_evaluation_table.csv")
+    # qtf_rec_linear.save_meta_table("recommender_data/linear_meta_features_table.csv", "recommender_data/linear_evaluation_table.csv")
+
+    # qtf_rec_randomforests.load_meta_table_and_fit("recommender_data/random_forests_meta_features_table.csv", "recommender_data/random_forests_evaluation_table.csv")
+    # qtf_rec_linear.load_meta_table_and_fit("recommender_data/linear_meta_features_table.csv", "recommender_data/linear_evaluation_table.csv")
+
+    # qtf_rec_randomforests.leave_one_out_evaluation("recommender_data/random_forests_leave_one_out.csv")
+    # qtf_rec_linear.leave_one_out_evaluation("recommender_data/linear_leave_one_out.csv")
+
+
+    # recommender_evaluation_table = supervised_quantifier_recommender.leave_one_out_evaluation("recommender_data/recommender_evaluation_table_2.csv")
+    # old_recommender_evaluation_table = supervised_quantifier_recommender.OLD_leave_one_out_evaluation("recommender_data/OLD_recommender_evaluation_table_2.csv")
+    
+    # pdb.set_trace()
+
+    q = QuantifierRecommender(supervised=True)
+    q.load_meta_table_and_fit("recommender_data/meta_features_table.csv", "recommender_data/evaluation_table.csv")
+    X_test, y_test = load_test_data("namao", supervised=True)
+    
+    execution_time = timeit.timeit(predict_wrapper, number=20)
+    print(f"Average execution time over 1000 runs: {execution_time / 20} s")
+    
+    start = time.perf_counter()
+    ranking = q.predict(X_test, y_test)
+    stop = time.perf_counter()
+    
+    print(f"Time: {stop - start} s")
+
+
+    # k_quantifier = KQuantifier(k=11)
+    # X_train, y_train, X_test, y_test = load_train_test_data("BNG")
+    # ranking = k_quantifier.fit(X_train, y_train)
+    # print(ranking)

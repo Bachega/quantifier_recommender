@@ -5,14 +5,20 @@ import joblib
 
 from sklearn.ensemble import RandomForestRegressor
 from sklearn.preprocessing import MinMaxScaler
+from sklearn.base import is_regressor, clone
 
 from meta_feature_extractor import MetaFeatureExtractor
 from quantifier_evaluator import QuantifierEvaluator
 from utils_ import load_train_test_data
     
 class QuantifierRecommender:
-    def __init__(self, supervised: bool = True):
+    def __init__(self, supervised: bool = True, recommender_model = RandomForestRegressor()):
+        if not is_regressor(recommender_model):
+            raise ValueError("The regression model must be a scikit-learn regressor")
+        self.__recommender_model = recommender_model
+        
         self.__supervised = supervised
+        self.is_supervised = supervised
 
         self._unscaled_meta_features_table = None
         self.meta_features_table = None
@@ -21,6 +27,7 @@ class QuantifierRecommender:
         
         self.recommender_dict = {}
         self.is_meta_table_constructed = False
+
 
         self.mfe = MetaFeatureExtractor()
         self.quantifier_evaluator = QuantifierEvaluator()
@@ -69,14 +76,17 @@ class QuantifierRecommender:
         self.meta_features_table = pd.read_csv(meta_features_table_path, index_col=0)
         self._unscaled_meta_features_table = pd.read_csv(unscaled_meta_features_table_path, index_col=0)
         self.evaluation_table = pd.read_csv(evaluation_table_path, index_col=[0, 1])
-    
+
     def load_meta_table_and_fit(self, meta_fetaures_table_path: str, evaluation_table_path: str):
         self.load_meta_table(meta_fetaures_table_path, evaluation_table_path)
+        data = self._unscaled_meta_features_table.values
+        self._fitted_scaler = MinMaxScaler()
+        self._fitted_scaler.fit(data)
         
         X_train = self.meta_features_table.values
         for quantifier in self.evaluation_table.index.levels[0].tolist():
             y_train = self.evaluation_table.loc[quantifier]['abs_error'].values
-            self.recommender_dict[quantifier] = RandomForestRegressor()
+            self.recommender_dict[quantifier] = clone(self.__recommender_model)
             self.recommender_dict[quantifier].fit(X_train, y_train)
     
     def persist_model(self, path: str):
@@ -119,8 +129,8 @@ class QuantifierRecommender:
                                                                                     y_train,
                                                                                     X_test,
                                                                                     y_test))
-            # if i == 5:
-            #     break
+            if i == 4:
+                break
             
         # Normalize the extracted meta-features
         self.meta_features_table = self.__get_normalized_meta_features_table()
@@ -138,25 +148,29 @@ class QuantifierRecommender:
         y_train = None
         for quantifier in self.evaluation_table.index.levels[0].tolist():
             y_train = self.evaluation_table.loc[quantifier]['abs_error'].values
-            self.recommender_dict[quantifier] = RandomForestRegressor()
+            self.recommender_dict[quantifier] = clone(self.__recommender_model)
             self.recommender_dict[quantifier].fit(X_train, y_train)
     
-    def predict(self, X_test, y_test = None) -> dict:
+    def predict(self, X_test, y_test = None, k: int = -1) -> dict:
         if self.__supervised:
             _, _X_test = self.mfe.extract_meta_features(X_test, y_test)
         else:
             _, _X_test = self.mfe.extract_meta_features(X_test)
-
         _X_test = self._fitted_scaler.fit_transform(np.array(_X_test).reshape(1, -1))
 
+        if k == -1 or k > len(self.recommender_dict.keys()):
+            k = len(self.recommender_dict.keys())
+    
         result = pd.Series(index = list(self.recommender_dict.keys()))
         for quantifier, recommender in self.recommender_dict.items():
             result[quantifier] = recommender.predict(_X_test)
 
-        ranking = {key: None for key in range(1, len(self.recommender_dict.keys())+1)}
+        ranking = {key: None for key in range(1, k+1)}        
         i = 1
         for index, value in result.sort_values().items():
             ranking[i] = [index, value]
+            if i == k:
+                break
             i += 1
         
         return ranking
@@ -165,10 +179,8 @@ class QuantifierRecommender:
     def leave_one_out_evaluation(self, path: str = None):
         recommender_evaluation_table = pd.DataFrame(columns=["predicted_error", "true_error"], index=self.evaluation_table.index)
         for quantifier, recommender in self.recommender_dict.items():
-            recommender_ = None
+            recommender_ = clone(recommender)
             scaler = MinMaxScaler()
-            if isinstance(recommender, RandomForestRegressor):
-                recommender_ = RandomForestRegressor()
 
             for dataset in self.evaluation_table.index.levels[1]:
                 unscaled_X_test = self._unscaled_meta_features_table.loc[dataset].values
@@ -193,9 +205,7 @@ class QuantifierRecommender:
     def OLD_leave_one_out_evaluation(self, path: str = None):
         recommender_evaluation_table = pd.DataFrame(columns=["predicted_error", "true_error"], index=self.evaluation_table.index)
         for quantifier, recommender in self.recommender_dict.items():
-            recommender_ = None
-            if isinstance(recommender, RandomForestRegressor):
-                recommender_ = RandomForestRegressor()
+            recommender_ = clone(recommender)
 
             for dataset in self.evaluation_table.index.levels[1]:
                 X_test = self.meta_features_table.loc[dataset].values
