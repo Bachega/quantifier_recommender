@@ -64,7 +64,21 @@ class QuantifierRecommender:
         self._unscaled_meta_features_table.to_csv(unscaled_meta_features_table_path)
         self.evaluation_table.to_csv(evaluation_table_path)
     
-    def load_meta_table(self, meta_features_table_path: str, evaluation_table_path: str):        
+    # def load_meta_table(self, meta_features_table_path: str, evaluation_table_path: str):        
+    #     if not ".csv" in meta_features_table_path:
+    #         unscaled_meta_features_table_path += "_unscaled.csv"
+    #         meta_features_table_path += ".csv"
+    #     unscaled_meta_features_table_path = meta_features_table_path.replace(".csv", "_unscaled.csv")
+        
+    #     if not ".csv" in evaluation_table_path:
+    #         evaluation_table_path += ".csv"
+        
+    #     self.meta_features_table = pd.read_csv(meta_features_table_path, index_col=0)
+    #     self._unscaled_meta_features_table = pd.read_csv(unscaled_meta_features_table_path, index_col=0)
+    #     self.evaluation_table = pd.read_csv(evaluation_table_path, index_col=[0, 1])
+
+    def load_and_fit_meta_table(self, meta_features_table_path: str, evaluation_table_path: str):
+        # self.load_meta_table(meta_fetaures_table_path, evaluation_table_path)
         if not ".csv" in meta_features_table_path:
             unscaled_meta_features_table_path += "_unscaled.csv"
             meta_features_table_path += ".csv"
@@ -77,8 +91,6 @@ class QuantifierRecommender:
         self._unscaled_meta_features_table = pd.read_csv(unscaled_meta_features_table_path, index_col=0)
         self.evaluation_table = pd.read_csv(evaluation_table_path, index_col=[0, 1])
 
-    def load_meta_table_and_fit(self, meta_fetaures_table_path: str, evaluation_table_path: str):
-        self.load_meta_table(meta_fetaures_table_path, evaluation_table_path)
         data = self._unscaled_meta_features_table.values
         self._fitted_scaler = MinMaxScaler()
         self._fitted_scaler.fit(data)

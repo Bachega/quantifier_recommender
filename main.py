@@ -1,4 +1,5 @@
 import pandas as pd
+import numpy as np
 import os
 import pdb
 import time
@@ -14,6 +15,38 @@ from sklearn.linear_model import LinearRegression
 from sklearn.base import is_regressor
 
 from k_quantifier import KQuantifier
+
+
+
+
+
+from quantifiers.CC import classify_count
+from quantifiers.ACC import ACC
+from quantifiers.PCC import PCC
+from quantifiers.PACC import PACC
+from quantifiers.HDy import Hdy
+from quantifiers.X import X
+from quantifiers.MAX import Max
+from quantifiers.SMM import SMM  
+from quantifiers.dys_method import dys_method
+from quantifiers.sord import SORD_method
+from quantifiers.MS import MS_method
+from quantifiers.MS_2 import MS_method2
+from quantifiers.T50 import T50
+from quantifiers.PWK import PWK
+from quantifiers.GAC import GAC
+from quantifiers.GPAC import GPAC
+from quantifiers.FM import FM
+
+
+
+
+
+from sklearn.linear_model import LogisticRegression
+from sklearn.calibration import CalibratedClassifierCV
+
+from utils.getTrainingScores import getTrainingScores
+from utils.getTPRFPR import getTPRFPR
 
 def load_train_test_data(dataset_name):
     train_df = pd.read_csv(f"./data/train_data/{dataset_name}.csv")
@@ -39,87 +72,84 @@ def load_test_data(dataset_name, supervised = True):
 def predict_wrapper():
     q.predict(X_test, y_test)
 
+def say_hello():
+    print("Hello")
+
 if __name__ == "__main__":
-    # supervised_quantifier_recommender = QuantifierRecommender(supervised=True)
-    # unsupervised_quantifier_recommender = QuantifierRecommender(supervised=False)
+    # recommender = QuantifierRecommender(supervised=True)
+    # recommender.load_meta_table_and_fit("recommender_data/meta_features_table.csv", "recommender_data/evaluation_table.csv")
     
-    # supervised_quantifier_recommender.fit(datasets_path="./datasets/",
-    #                                       train_data_path="./data/train_data/",
-    #                                       test_data_path="./data/test_data/")
-    # supervised_quantifier_recommender.persist_model("supervised_quantifier_recommender.pkl")
-    
+    # print(recommender.predict(X_test, y_test))
 
-
-
-    # unsupervised_quantifier_recommender.fit(datasets_path="./datasets/",
-    #                                         train_data_path="./data/train_data/",
-    #                                         test_data_path="./data/test_data/")
-    
-    # X_test, y_test = load_test_data("BNG", supervised=True)
-    # s_ranking = supervised_quantifier_recommender.predict(X_test, y_test)
-    
-    # X_test = load_test_data("BNG", supervised=False)
-    # u_ranking = unsupervised_quantifier_recommender.predict(X_test)
-
-    # supervised_quantifier_recommender.persist_model("s_qtf_recommender.pkl")
-    # unsupervised_quantifier_recommender.persist_model("u_qtf_recommender.pkl")
-
-    # s_qtf_rec = QuantifierRecommender.load_model("s_qtf_recommender.pkl")
-    # u_qtf_rec = QuantifierRecommender.load_model("u_qtf_recommender.pkl")
-
-    # X_test, y_test = load_test_data("BNG", supervised=True)
-    # new_s_ranking = s_qtf_rec.predict(X_test, y_test)
-
-    # X_test = load_test_data("BNG", supervised=False)
-    # new_u_ranking = u_qtf_rec.predict(X_test)
-
-    # qtf_rec = QuantifierRecommender.load_model("s_qtf_recommender.pkl")
-
-
-    # supervised_quantifier_recommender = QuantifierRecommender.load_model("supervised_quantifier_recommender.pkl")
-
-    
-    # qtf_rec_randomforests = QuantifierRecommender(supervised=True, recommender_model=RandomForestRegressor())
-    # qtf_rec_linear = QuantifierRecommender(supervised=True, recommender_model=LinearRegression())
-
-    # qtf_rec_randomforests.fit(datasets_path="./datasets/",
-    #                           train_data_path="./data/train_data/",
-    #                           test_data_path="./data/test_data/")
-    
-    # qtf_rec_linear.fit(datasets_path="./datasets/",
-    #                       train_data_path="./data/train_data/",
-    #                       test_data_path="./data/test_data/")
-       
-    # qtf_rec_randomforests.save_meta_table("recommender_data/random_forests_meta_features_table.csv", "recommender_data/random_forests_evaluation_table.csv")
-    # qtf_rec_linear.save_meta_table("recommender_data/linear_meta_features_table.csv", "recommender_data/linear_evaluation_table.csv")
-
-    # qtf_rec_randomforests.load_meta_table_and_fit("recommender_data/random_forests_meta_features_table.csv", "recommender_data/random_forests_evaluation_table.csv")
-    # qtf_rec_linear.load_meta_table_and_fit("recommender_data/linear_meta_features_table.csv", "recommender_data/linear_evaluation_table.csv")
-
-    # qtf_rec_randomforests.leave_one_out_evaluation("recommender_data/random_forests_leave_one_out.csv")
-    # qtf_rec_linear.leave_one_out_evaluation("recommender_data/linear_leave_one_out.csv")
-
-
-    # recommender_evaluation_table = supervised_quantifier_recommender.leave_one_out_evaluation("recommender_data/recommender_evaluation_table_2.csv")
-    # old_recommender_evaluation_table = supervised_quantifier_recommender.OLD_leave_one_out_evaluation("recommender_data/OLD_recommender_evaluation_table_2.csv")
-    
+    X_train, y_train, X_test, y_test = load_train_test_data("BNG")
+    clf = LogisticRegression(random_state=42, n_jobs=-1)
+    calib_clf = CalibratedClassifierCV(clf, cv=3, n_jobs=-1)
+    calib_clf.fit(X_train, y_train)
+    scores = getTrainingScores(X_train, y_train, 10, clf)[0]
+    pos_scores = scores[scores["class"]==1]["scores"]
+    neg_scores = scores[scores["class"]==0]["scores"]
+    tprfpr = getTPRFPR(scores)
+    clf.fit(X_train, y_train)
+    test_scores = clf.predict_proba(X_test)[:,1]
     # pdb.set_trace()
 
-    q = QuantifierRecommender(supervised=True)
-    q.load_meta_table_and_fit("recommender_data/meta_features_table.csv", "recommender_data/evaluation_table.csv")
-    X_test, y_test = load_test_data("namao", supervised=True)
+    report = ""
+    # ACC
+    res = ACC(test_scores, tprfpr)
+    report += f"ACC: {res}\n"
+
+    # CC
+    res = classify_count(test_scores, thr=0.5)
+    report += f"CC: {res}\n"
+
+    # DyS
+    res = dys_method(pos_scores, neg_scores, test_scores, measure="hellinger")
+    report += f"DyS: {res}\n"
+
+    # HDy
+    res = Hdy(pos_scores, neg_scores, test_scores)
+    report += f"HDy: {res}\n"
+
+    # MAX
+    res = Max(test_scores, tprfpr)
+    report += f"MAX: {res}\n"
     
-    execution_time = timeit.timeit(predict_wrapper, number=20)
-    print(f"Average execution time over 1000 runs: {execution_time / 20} s")
+    # MS
+    res = MS_method(test_scores, tprfpr)
+    report += f"MS: {res}\n"
     
-    start = time.perf_counter()
-    ranking = q.predict(X_test, y_test)
-    stop = time.perf_counter()
-    
-    print(f"Time: {stop - start} s")
+    # PACC
+    res = PACC(calib_clf, X_test, tprfpr, thr=0.5)
+    report += f"PACC: {res}\n"
+
+    # PCC
+    res = PCC(calib_clf, X_test, thr=0.5)
+    report += f"PCC: {res}\n"
+
+    # SMM
+    res = SMM(pos_scores, neg_scores, test_scores)
+    report += f"SMM: {res}\n"
+
+    # SORD
+    res = SORD_method(pos_scores, neg_scores, test_scores)
+    report += f"SORD: {res}\n"
+
+    # X
+    res = X(test_scores, tprfpr)
+    report += f"X: {res}\n"
+
+    report += f"TRUE POSITIVE PREVALENCE: {np.count_nonzero(y_test == 1) / len(y_test)}"
+
+    print(report)
 
 
-    # k_quantifier = KQuantifier(k=11)
-    # X_train, y_train, X_test, y_test = load_train_test_data("BNG")
-    # ranking = k_quantifier.fit(X_train, y_train)
-    # print(ranking)
+    # # execution_time = timeit.timeit(predict_wrapper, number=20)
+    # # print(f"Average execution time over 1000 runs: {execution_time / 20} s")
+    
+    # start = time.perf_counter()
+    # ranking = q.predict(X_test, y_test)
+    # stop = time.perf_counter()
+    
+    # print(f"Time: {stop - start} s")
+
+    
