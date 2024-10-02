@@ -69,19 +69,9 @@ def load_test_data(dataset_name, supervised = True):
     
     return X_test.to_numpy()
 
-def predict_wrapper():
-    q.predict(X_test, y_test)
+def run_quantifiers(dataset_name: str):
+    X_train, y_train, X_test, y_test = load_train_test_data(dataset_name=dataset_name)
 
-def say_hello():
-    print("Hello")
-
-if __name__ == "__main__":
-    # recommender = QuantifierRecommender(supervised=True)
-    # recommender.load_meta_table_and_fit("recommender_data/meta_features_table.csv", "recommender_data/evaluation_table.csv")
-    
-    # print(recommender.predict(X_test, y_test))
-
-    X_train, y_train, X_test, y_test = load_train_test_data("BNG")
     clf = LogisticRegression(random_state=42, n_jobs=-1)
     calib_clf = CalibratedClassifierCV(clf, cv=3, n_jobs=-1)
     calib_clf.fit(X_train, y_train)
@@ -91,7 +81,6 @@ if __name__ == "__main__":
     tprfpr = getTPRFPR(scores)
     clf.fit(X_train, y_train)
     test_scores = clf.predict_proba(X_test)[:,1]
-    # pdb.set_trace()
 
     report = ""
     # ACC
@@ -140,8 +129,22 @@ if __name__ == "__main__":
 
     report += f"TRUE POSITIVE PREVALENCE: {np.count_nonzero(y_test == 1) / len(y_test)}"
 
-    print(report)
+    return report
 
+if __name__ == "__main__":
+    # recommender = QuantifierRecommender(supervised=True)
+    # recommender.load_meta_table_and_fit("recommender_data/meta_features_table.csv", "recommender_data/evaluation_table.csv")
+    
+    # print(recommender.predict(X_test, y_test))
+    dataset = "winetype"
+
+    report = run_quantifiers(dataset)
+    k_quantifier = KQuantifier(k=3)
+    X_train, y_train, X_test, y_test = load_train_test_data(dataset)
+    k_quantifier.fit(X_train, y_train)
+    result = k_quantifier.predict(X_test)
+    report += f"\nKQUANTIFIER: {result}"
+    print(report)
 
     # # execution_time = timeit.timeit(predict_wrapper, number=20)
     # # print(f"Average execution time over 1000 runs: {execution_time / 20} s")
@@ -151,5 +154,3 @@ if __name__ == "__main__":
     # stop = time.perf_counter()
     
     # print(f"Time: {stop - start} s")
-
-    
