@@ -28,8 +28,8 @@ def MS_method(test_scores, tprfpr):
         
         threshold =  round(i,2)        
         record = tprfpr[round(tprfpr['threshold'],2) == threshold]        
-        tpr = float(record['tpr'])        
-        fpr = float(record['fpr'])    
+        tpr = float(record['tpr'].iloc[0])
+        fpr = float(record['fpr'].iloc[0])
         batch_size = len(test_scores)     
         test = test_scores.astype(float)    
         class_prop = len(np.where(test >= threshold)[0])/batch_size

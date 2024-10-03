@@ -18,10 +18,10 @@ class MetaFeatureExtractor:
         X = self.__check_convert_data_type(X)
 
         if y is None:
-            self.mfe.fit(X)
+            self.mfe.fit(X, suppress_warnings=True)
         else:
             y = self.__check_convert_data_type(y)
-            self.mfe.fit(X, y)
+            self.mfe.fit(X, y, suppress_warnings=True)
 
         columns_and_features = self.mfe.extract(cat_cols="auto", suppress_warnings=True, verbose=0)
         columns = columns_and_features[0]

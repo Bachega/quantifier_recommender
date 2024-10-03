@@ -19,10 +19,10 @@ def getTPRFPR(scores):
     """
     unique_scores = np.linspace(0,1,101)
 
-    TprFpr = pd.DataFrame(columns=['threshold','fpr', 'tpr'])
     total_positive = len(scores[scores['class']==1])
     total_negative = len(scores[scores['class']==0])
     
+    aux_list = []
     for threshold in unique_scores:
         fp = len(scores[(scores['scores'] > threshold) & (scores['class']==0)])
         tp = len(scores[(scores['scores'] > threshold) & (scores['class']==1)])
@@ -32,6 +32,9 @@ def getTPRFPR(scores):
 
         aux = pd.DataFrame([[threshold, fpr, tpr]])
         aux.columns = ['threshold', 'fpr', 'tpr']
-        TprFpr = pd.concat([TprFpr, aux], ignore_index=True)
+        # pdb.set_trace()
+        aux_list.append(aux)
+    TprFpr = pd.DataFrame(columns=['threshold','fpr', 'tpr'])
+    TprFpr = pd.concat(aux_list, ignore_index=True)
      
     return TprFpr
