@@ -1,10 +1,8 @@
-import os
 import pandas as pd
 import numpy as np
-import json
 import time
 import joblib
-import pdb
+
 from utils.getTrainingScores import getTrainingScores
 from utils.getTPRFPR import getTPRFPR
 from utils.applyquantifiers import apply_quantifier
@@ -57,11 +55,12 @@ class QuantifierEvaluator:
         self.qtf_evaluation_table = pd.DataFrame(columns=self.__qtf_evaluation_table_columns)
         
         clf = None
-        try:
-            clf = joblib.load(f"./data/estimator_parameters/{dataset_name}.joblib")
-            clf.n_jobs = -1
-        except:
-            clf = LogisticRegression(random_state=42, n_jobs=-1)
+        clf = LogisticRegression(random_state=42, n_jobs=-1)
+        # try:
+        #     clf = joblib.load(f"./data/estimator_parameters/{dataset_name}.joblib")
+        #     clf.n_jobs = -1
+        # except:
+        #     clf = LogisticRegression(random_state=42, n_jobs=-1)
         
         calib_clf = CalibratedClassifierCV(clf, cv=3, n_jobs=-1)
         calib_clf.fit(X_train, y_train)
@@ -88,11 +87,10 @@ class QuantifierEvaluator:
             for alpha in alpha_values:
                 abs_error_dict = {key: [] for key in self.__quantifiers}
                 run_time_dict = {key: [] for key in self.__quantifiers}
-                # pdb.set_trace()
 
                 # Repeats the same experiment (to reduce variance)
-                for iter in range(1): # ----------------------------> Change this to niterations
-                # for iter in range(niterations):
+                # for iter in range(1): # ----------------------------> Change this to niterations
+                for iter in range(niterations):
                     pos_size = int(round(sample_size * alpha, 2))
                     neg_size = sample_size - pos_size
                     
@@ -109,11 +107,6 @@ class QuantifierEvaluator:
                     calcultd_pos_prop = round(n_pos_sample_test/len(sample_test), 2) #actual pos class prevalence in generated sample
 
                     for quantifier in quantifiers:
-                        #..............Test Sample QUAPY exp...........................
-                        te_quapy = None
-                        external_qnt = None
-
-                        
                         #.............Calling of Methods..................................................
                         start = time.perf_counter()
                         pred_pos_prop = apply_quantifier(qntMethod=quantifier,
@@ -127,8 +120,8 @@ class QuantifierEvaluator:
                                                         thr=0.5,
                                                         measure='hellinger',
                                                         test_data=test_sample,
-                                                        test_quapy=te_quapy,
-                                                        external_qnt=external_qnt) #y_test=test_label
+                                                        test_quapy=None,
+                                                        external_qnt=None)
                         stop = time.perf_counter()
                         run_time_dict[quantifier].append(stop - start)
 

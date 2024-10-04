@@ -7,6 +7,14 @@ from sklearn.linear_model import LogisticRegression
 from sklearn.model_selection import GridSearchCV
 import pdb
 
+from utils.getTrainingScores import getTrainingScores
+from utils.getTPRFPR import getTPRFPR
+from utils.applyquantifiers import apply_quantifier
+from sklearn.calibration import CalibratedClassifierCV
+import time
+
+from k_quantifier import KQuantifier
+
 # This function generates the train and test partitions
 # using holdout with test_size = 0.3 AND random_state = 42
 # Also: data is normalized (MinMax Scale)
@@ -73,3 +81,19 @@ def load_train_test_data(dataset_name, train_data_path, test_data_path):
     X_test = test_df
 
     return X_train.to_numpy(), y_train.to_numpy(), X_test.to_numpy(), y_test.to_numpy()
+
+def load_recommender_evaluation_table(path: str):
+    if not os.path.exists(path):
+        raise FileNotFoundError(f"File {path} not found")
+    
+    if not path.endswith(".csv"):
+        raise ValueError("File must be a CSV file")
+    
+    evaluation_table = pd.read_csv(path)
+
+    evaluation_table['predicted_ranking'] = evaluation_table['predicted_ranking'].apply(eval)
+    evaluation_table['true_ranking'] = evaluation_table['true_ranking'].apply(eval)
+    evaluation_table['predicted_ranking_error'] = evaluation_table['predicted_ranking_error'].apply(eval)
+    evaluation_table['true_ranking_error'] = evaluation_table['true_ranking_error'].apply(eval)
+
+    return evaluation_table

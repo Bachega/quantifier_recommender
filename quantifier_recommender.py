@@ -9,7 +9,6 @@ from sklearn.base import is_regressor, clone
 
 from meta_feature_extractor import MetaFeatureExtractor
 from quantifier_evaluator import QuantifierEvaluator
-from utils_ import load_train_test_data
     
 class QuantifierRecommender:
     def __init__(self, supervised: bool = True, recommender_model = RandomForestRegressor()):
@@ -49,52 +48,41 @@ class QuantifierRecommender:
         if self._unscaled_meta_features_table is None:
             self._unscaled_meta_features_table = pd.DataFrame(columns=columns)
 
-        # self.meta_features_table.loc[len(self.meta_features_table.index)] = features
         self._unscaled_meta_features_table.loc[dataset_name] = features
     
-    def save_meta_table(self, meta_features_table_path: str, evaluation_table_path: str):
-        if not ".csv" in meta_features_table_path:
-            meta_features_table_path += ".csv"
-        unscaled_meta_features_table_path = meta_features_table_path.replace(".csv", "_unscaled.csv")
-        
-        if not ".csv" in evaluation_table_path:
-            evaluation_table_path += ".csv"
+    def __load_train_test_data(self, dataset_name, train_data_path, test_data_path):
+        train_df = pd.read_csv(f"{train_data_path}/{dataset_name}.csv")
+        y_train = train_df.pop(train_df.columns[-1])
+        X_train = train_df
 
-        self.meta_features_table.to_csv(meta_features_table_path)
-        self._unscaled_meta_features_table.to_csv(unscaled_meta_features_table_path)
-        self.evaluation_table.to_csv(evaluation_table_path)
+        test_df = pd.read_csv(f"{test_data_path}/{dataset_name}.csv")
+        y_test = test_df.pop(test_df.columns[-1])
+        X_test = test_df
+
+        return X_train.to_numpy(), y_train.to_numpy(), X_test.to_numpy(), y_test.to_numpy()
+
+    def _save_meta_table(self, meta_table_path: str):
+        if not meta_table_path.endswith(".h5"):
+            meta_table_path += ".h5"
+
+        with pd.HDFStore(meta_table_path) as store:
+            store.put("meta_features_table", self.meta_features_table)
+            store.put("unscaled_meta_features_table", self._unscaled_meta_features_table)
+            store.put("evaluation_table", self.evaluation_table)
     
-    # def load_meta_table(self, meta_features_table_path: str, evaluation_table_path: str):        
-    #     if not ".csv" in meta_features_table_path:
-    #         unscaled_meta_features_table_path += "_unscaled.csv"
-    #         meta_features_table_path += ".csv"
-    #     unscaled_meta_features_table_path = meta_features_table_path.replace(".csv", "_unscaled.csv")
-        
-    #     if not ".csv" in evaluation_table_path:
-    #         evaluation_table_path += ".csv"
-        
-    #     self.meta_features_table = pd.read_csv(meta_features_table_path, index_col=0)
-    #     self._unscaled_meta_features_table = pd.read_csv(unscaled_meta_features_table_path, index_col=0)
-    #     self.evaluation_table = pd.read_csv(evaluation_table_path, index_col=[0, 1])
+    def load_and_fit_meta_table(self, meta_table_path: str):
+        if not meta_table_path.endswith(".h5"):
+            meta_table_path += ".h5"
 
-    def load_and_fit_meta_table(self, meta_features_table_path: str, evaluation_table_path: str):
-        # self.load_meta_table(meta_fetaures_table_path, evaluation_table_path)
-        if not ".csv" in meta_features_table_path:
-            unscaled_meta_features_table_path += "_unscaled.csv"
-            meta_features_table_path += ".csv"
-        unscaled_meta_features_table_path = meta_features_table_path.replace(".csv", "_unscaled.csv")
-        
-        if not ".csv" in evaluation_table_path:
-            evaluation_table_path += ".csv"
-        
-        self.meta_features_table = pd.read_csv(meta_features_table_path, index_col=0)
-        self._unscaled_meta_features_table = pd.read_csv(unscaled_meta_features_table_path, index_col=0)
-        self.evaluation_table = pd.read_csv(evaluation_table_path, index_col=[0, 1])
+        with pd.HDFStore(meta_table_path) as store:
+            self.meta_features_table = store.get("meta_features_table")
+            self._unscaled_meta_features_table = store.get("unscaled_meta_features_table")
+            self.evaluation_table = store.get("evaluation_table")
 
         data = self._unscaled_meta_features_table.values
         self._fitted_scaler = MinMaxScaler()
         self._fitted_scaler.fit(data)
-        
+
         X_train = self.meta_features_table.values
         for quantifier in self.evaluation_table.index.levels[0].tolist():
             y_train = self.evaluation_table.loc[quantifier]['abs_error'].values
@@ -119,7 +107,7 @@ class QuantifierRecommender:
         # Appending the evaluations to a list and then concatenating them
         # to a pandas dataframe is O(n)
         evaluation_list = []
-        for i, dataset in enumerate(dataset_list):
+        for _, dataset in enumerate(dataset_list):
             dataset_name = dataset.split(".csv")[0]
             
             # Meta-Features extraction
@@ -135,14 +123,12 @@ class QuantifierRecommender:
             self.__extract_and_append(dataset_name, X=X, y=y)
 
             # Quantifiers evaluation
-            X_train, y_train, X_test, y_test = load_train_test_data(dataset_name, train_data_path, test_data_path)
+            X_train, y_train, X_test, y_test = self.__load_train_test_data(dataset_name, train_data_path, test_data_path)
             evaluation_list.append(self.quantifier_evaluator.evaluate_quantifiers(dataset_name,
                                                                                     X_train,
                                                                                     y_train,
                                                                                     X_test,
                                                                                     y_test))
-            if i == 4:
-                break
             
         # Normalize the extracted meta-features
         self.meta_features_table = self.__get_normalized_meta_features_table()
@@ -189,7 +175,7 @@ class QuantifierRecommender:
 
     # Evaluate Quantifier Recommender with Leave-One-Out
     def leave_one_out_evaluation(self, path: str = None):
-        recommender_evaluation_table = pd.DataFrame(columns=["predicted_error", "true_error"], index=self.evaluation_table.index)
+        aux_recommender_evaluation_table = pd.DataFrame(columns=["predicted_error", "true_error"], index=self.evaluation_table.index)
         for quantifier, recommender in self.recommender_dict.items():
             recommender_ = clone(recommender)
             scaler = MinMaxScaler()
@@ -208,14 +194,27 @@ class QuantifierRecommender:
                 X_test = scaler.fit_transform(np.array(unscaled_X_test).reshape(1, -1))
                 predicted_error = recommender_.predict(X_test)[0]
 
-                recommender_evaluation_table.loc[(quantifier, dataset)] = [predicted_error, y_test]
+                aux_recommender_evaluation_table.loc[(quantifier, dataset)] = [predicted_error, y_test]
         
+        datasets = aux_recommender_evaluation_table.index.get_level_values('dataset').unique()
+        recommender_evaluation_table = pd.DataFrame(columns=["predicted_ranking", "true_ranking", "predicted_ranking_error", "true_ranking_error"], index=datasets)
+        for dataset in datasets:
+            filtered_result = aux_recommender_evaluation_table.xs(dataset, level='dataset')
+            
+            predicted_ranking = filtered_result.sort_values(by='predicted_error').index.tolist()
+            predicted_ranking_error = [filtered_result.loc[quantifier, 'predicted_error'] for quantifier in predicted_ranking]
+
+            true_ranking = filtered_result.sort_values(by='true_error').index.tolist()
+            true_ranking_error = [filtered_result.loc[quantifier, 'true_error'] for quantifier in true_ranking]
+
+            recommender_evaluation_table.loc[dataset] = [predicted_ranking, true_ranking, predicted_ranking_error, true_ranking_error]
+
         if not path is None:
             recommender_evaluation_table.to_csv(path)
         return recommender_evaluation_table
     
     def OLD_leave_one_out_evaluation(self, path: str = None):
-        recommender_evaluation_table = pd.DataFrame(columns=["predicted_error", "true_error"], index=self.evaluation_table.index)
+        aux_recommender_evaluation_table = pd.DataFrame(columns=["predicted_error", "true_error"], index=self.evaluation_table.index)
         for quantifier, recommender in self.recommender_dict.items():
             recommender_ = clone(recommender)
 
@@ -229,8 +228,21 @@ class QuantifierRecommender:
                 recommender_.fit(X_train, y_train)
                 predicted_error = recommender_.predict(np.array(X_test).reshape(1, -1))[0]
 
-                recommender_evaluation_table.loc[(quantifier, dataset)] = [predicted_error, y_test]
+                aux_recommender_evaluation_table.loc[(quantifier, dataset)] = [predicted_error, y_test]
         
+        datasets = aux_recommender_evaluation_table.index.get_level_values('dataset').unique()
+        recommender_evaluation_table = pd.DataFrame(columns=["predicted_ranking", "true_ranking", "predicted_ranking_error", "true_ranking_error"], index=datasets)
+        for dataset in datasets:
+            filtered_result = aux_recommender_evaluation_table.xs(dataset, level='dataset')
+            
+            predicted_ranking = filtered_result.sort_values(by='predicted_error').index.tolist()
+            predicted_ranking_error = [filtered_result.loc[quantifier, 'predicted_error'] for quantifier in predicted_ranking]
+
+            true_ranking = filtered_result.sort_values(by='true_error').index.tolist()
+            true_ranking_error = [filtered_result.loc[quantifier, 'true_error'] for quantifier in true_ranking]
+
+            recommender_evaluation_table.loc[dataset] = [predicted_ranking, true_ranking, predicted_ranking_error, true_ranking_error]
+
         if not path is None:
             recommender_evaluation_table.to_csv(path)
         return recommender_evaluation_table

@@ -7,16 +7,14 @@ import timeit
 
 from quantifier_recommender import QuantifierRecommender
 from quantifier_evaluator import QuantifierEvaluator
+from k_quantifier import KQuantifier
+
 from utils_ import generate_train_test_data
-from quantifier_evaluator import QuantifierEvaluator
+
 
 from sklearn.ensemble import RandomForestRegressor
 from sklearn.linear_model import LinearRegression
 from sklearn.base import is_regressor
-
-from k_quantifier import KQuantifier
-
-
 
 
 
@@ -39,14 +37,12 @@ from quantifiers.GPAC import GPAC
 from quantifiers.FM import FM
 
 
-
-
-
 from sklearn.linear_model import LogisticRegression
 from sklearn.calibration import CalibratedClassifierCV
 
 from utils.getTrainingScores import getTrainingScores
 from utils.getTPRFPR import getTPRFPR
+from evaluate_quantifiers_ import evaluate_quantifiers
 
 def load_train_test_data(dataset_name):
     train_df = pd.read_csv(f"./data/train_data/{dataset_name}.csv")
@@ -84,67 +80,125 @@ def run_quantifiers(dataset_name: str):
 
     report = ""
     # ACC
+    start = time.perf_counter()
     res = ACC(test_scores, tprfpr)
-    report += f"ACC: {res}\n"
+    stop = time.perf_counter()
+    report += f"ACC: {res} | Runtime: {stop - start} s\n"
 
     # CC
+    start = time.perf_counter()
     res = classify_count(test_scores, thr=0.5)
-    report += f"CC: {res}\n"
+    stop = time.perf_counter()
+    report += f"CC: {res} | Runtime: {stop - start} s\n"
 
     # DyS
+    start = time.perf_counter()
     res = dys_method(pos_scores, neg_scores, test_scores, measure="hellinger")
-    report += f"DyS: {res}\n"
+    stop = time.perf_counter()
+    report += f"DyS: {res} | Runtime: {stop - start} s\n"
 
     # HDy
+    start = time.perf_counter()
     res = Hdy(pos_scores, neg_scores, test_scores)
-    report += f"HDy: {res}\n"
+    stop = time.perf_counter()
+    report += f"HDy: {res} | Runtime: {stop - start} s\n"
 
     # MAX
+    start = time.perf_counter()
     res = Max(test_scores, tprfpr)
-    report += f"MAX: {res}\n"
+    stop = time.perf_counter()
+    report += f"MAX: {res} | Runtime: {stop - start} s\n"
     
     # MS
+    start = time.perf_counter()
     res = MS_method(test_scores, tprfpr)
-    report += f"MS: {res}\n"
+    stop = time.perf_counter()
+    report += f"MS: {res} | Runtime: {stop - start} s\n"
     
     # PACC
+    start = time.perf_counter()
     res = PACC(calib_clf, X_test, tprfpr, thr=0.5)
-    report += f"PACC: {res}\n"
+    stop = time.perf_counter()
+    report += f"PACC: {res} | Runtime: {stop - start} s\n"
 
     # PCC
+    start = time.perf_counter()
     res = PCC(calib_clf, X_test, thr=0.5)
-    report += f"PCC: {res}\n"
+    stop = time.perf_counter()
+    report += f"PCC: {res} | Runtime: {stop - start} s\n"
 
     # SMM
+    start = time.perf_counter()
     res = SMM(pos_scores, neg_scores, test_scores)
-    report += f"SMM: {res}\n"
+    stop = time.perf_counter()
+    report += f"SMM: {res} | Runtime: {stop - start} s\n"
 
     # SORD
+    start = time.perf_counter()
     res = SORD_method(pos_scores, neg_scores, test_scores)
-    report += f"SORD: {res}\n"
+    stop = time.perf_counter()
+    report += f"SORD: {res} | Runtime: {stop - start} s\n"
 
     # X
+    start = time.perf_counter()
     res = X(test_scores, tprfpr)
-    report += f"X: {res}\n"
+    stop = time.perf_counter()
+    report += f"X: {res} | Runtime: {stop - start} s\n"
 
     report += f"TRUE POSITIVE PREVALENCE: {np.count_nonzero(y_test == 1) / len(y_test)}"
 
     return report
 
 if __name__ == "__main__":
+    
+    
+    # recommender.save_meta_table()
+    print("Starting...")
+    start = time.perf_counter()
+    recommender = QuantifierRecommender(supervised=True)
+    recommender.load_and_fit_meta_table("./recommender_data/meta_table.h5")
+    stop = time.perf_counter()
+
+    print(f"Time: {stop - start} s")
+    
+    # recommender.fit(datasets_path="./datasets/", train_data_path="./data/train_data/", test_data_path="./data/test_data/")
+    # recommender.save_meta_table("recommender_data/meta_features_table.csv", "recommender_data/evaluation_table.csv")
+    
     # recommender = QuantifierRecommender(supervised=True)
     # recommender.load_meta_table_and_fit("recommender_data/meta_features_table.csv", "recommender_data/evaluation_table.csv")
     
+    
     # print(recommender.predict(X_test, y_test))
-    dataset = "winetype"
 
-    report = run_quantifiers(dataset)
-    k_quantifier = KQuantifier(k=3)
-    X_train, y_train, X_test, y_test = load_train_test_data(dataset)
-    k_quantifier.fit(X_train, y_train)
-    result = k_quantifier.predict(X_test)
-    report += f"\nKQUANTIFIER: {result}"
-    print(report)
+
+
+
+
+    # dataset = "anuranCalls"
+
+    # X_train, y_train, X_test, y_test = load_train_test_data(dataset)
+    # eval_table = evaluate_quantifiers(dataset, X_train, y_train, X_test, y_test)
+    # eval_table.to_csv("./evaluation_table.csv", index=False)
+
+
+
+
+
+
+
+
+    # report = ""
+    # report += run_quantifiers(dataset)
+    # k_quantifier = KQuantifier(k=-1)
+    # X_train, y_train, X_test, y_test = load_train_test_data(dataset)
+    # k_quantifier.fit(X_train, y_train)
+    
+    # start = time.perf_counter()
+    # result = k_quantifier.predict(X_test)
+    # stop = time.perf_counter()
+
+    # report += f"\nKQUANTIFIER: {result} | Runtime: {stop - start} s\n"
+    # print(report)
 
     # # execution_time = timeit.timeit(predict_wrapper, number=20)
     # # print(f"Average execution time over 1000 runs: {execution_time / 20} s")
