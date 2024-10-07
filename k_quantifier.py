@@ -36,7 +36,7 @@ class KQuantifier:
         self.__k = k
     
     def fit(self, X_train, y_train):
-        self.__quantifier_recommender.load_and_fit_meta_table("./recommender_data/meta_table.h5")
+        self.__quantifier_recommender.load_fit_meta_table("./recommender_data/meta_table.h5")
 
         self.__k_quantifiers = self.__quantifier_recommender.predict(X_train, y_train, k=self.k)
         self.__clf = LogisticRegression(random_state=42, n_jobs=-1)

@@ -70,7 +70,7 @@ class QuantifierRecommender:
             store.put("unscaled_meta_features_table", self._unscaled_meta_features_table)
             store.put("evaluation_table", self.evaluation_table)
     
-    def load_and_fit_meta_table(self, meta_table_path: str):
+    def load_fit_meta_table(self, meta_table_path: str):
         if not meta_table_path.endswith(".h5"):
             meta_table_path += ".h5"
 
@@ -193,40 +193,6 @@ class QuantifierRecommender:
 
                 X_test = scaler.fit_transform(np.array(unscaled_X_test).reshape(1, -1))
                 predicted_error = recommender_.predict(X_test)[0]
-
-                aux_recommender_evaluation_table.loc[(quantifier, dataset)] = [predicted_error, y_test]
-        
-        datasets = aux_recommender_evaluation_table.index.get_level_values('dataset').unique()
-        recommender_evaluation_table = pd.DataFrame(columns=["predicted_ranking", "true_ranking", "predicted_ranking_error", "true_ranking_error"], index=datasets)
-        for dataset in datasets:
-            filtered_result = aux_recommender_evaluation_table.xs(dataset, level='dataset')
-            
-            predicted_ranking = filtered_result.sort_values(by='predicted_error').index.tolist()
-            predicted_ranking_error = [filtered_result.loc[quantifier, 'predicted_error'] for quantifier in predicted_ranking]
-
-            true_ranking = filtered_result.sort_values(by='true_error').index.tolist()
-            true_ranking_error = [filtered_result.loc[quantifier, 'true_error'] for quantifier in true_ranking]
-
-            recommender_evaluation_table.loc[dataset] = [predicted_ranking, true_ranking, predicted_ranking_error, true_ranking_error]
-
-        if not path is None:
-            recommender_evaluation_table.to_csv(path)
-        return recommender_evaluation_table
-    
-    def OLD_leave_one_out_evaluation(self, path: str = None):
-        aux_recommender_evaluation_table = pd.DataFrame(columns=["predicted_error", "true_error"], index=self.evaluation_table.index)
-        for quantifier, recommender in self.recommender_dict.items():
-            recommender_ = clone(recommender)
-
-            for dataset in self.evaluation_table.index.levels[1]:
-                X_test = self.meta_features_table.loc[dataset].values
-                y_test = self.evaluation_table.loc[quantifier, dataset]['abs_error']
-
-                X_train = self.meta_features_table.drop(index=dataset).values
-                y_train = self.evaluation_table.loc[quantifier].drop(index=dataset)['abs_error'].values
-
-                recommender_.fit(X_train, y_train)
-                predicted_error = recommender_.predict(np.array(X_test).reshape(1, -1))[0]
 
                 aux_recommender_evaluation_table.loc[(quantifier, dataset)] = [predicted_error, y_test]
         

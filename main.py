@@ -156,7 +156,7 @@ if __name__ == "__main__":
     print("Starting...")
     start = time.perf_counter()
     recommender = QuantifierRecommender(supervised=True)
-    recommender.load_and_fit_meta_table("./recommender_data/meta_table.h5")
+    recommender.load_fit_meta_table("./recommender_data/meta_table.h5")
     stop = time.perf_counter()
 
     print(f"Time: {stop - start} s")
@@ -165,7 +165,7 @@ if __name__ == "__main__":
     # recommender.save_meta_table("recommender_data/meta_features_table.csv", "recommender_data/evaluation_table.csv")
     
     # recommender = QuantifierRecommender(supervised=True)
-    # recommender.load_meta_table_and_fit("recommender_data/meta_features_table.csv", "recommender_data/evaluation_table.csv")
+    # recommender.load_meta_table_fit("recommender_data/meta_features_table.csv", "recommender_data/evaluation_table.csv")
     
     
     # print(recommender.predict(X_test, y_test))
