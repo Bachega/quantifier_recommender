@@ -19,7 +19,7 @@ class QuantifierRecommender:
         self.__supervised = supervised
         self.is_supervised = supervised
 
-        self._unscaled_meta_features_table = None
+        self.__unscaled_meta_features_table = None
         self.meta_features_table = None
 
         self.evaluation_table = None
@@ -32,23 +32,23 @@ class QuantifierRecommender:
         self.quantifier_evaluator = QuantifierEvaluator()
      
     def __get_normalized_meta_features_table(self):
-        columns = self._unscaled_meta_features_table.columns
-        data = self._unscaled_meta_features_table.values
+        columns = self.__unscaled_meta_features_table.columns
+        data = self.__unscaled_meta_features_table.values
 
         self._fitted_scaler = MinMaxScaler()
         self._fitted_scaler.fit(data)
 
         scaled_meta_features_table = pd.DataFrame(self._fitted_scaler.transform(data), columns=columns)
-        scaled_meta_features_table.index = self._unscaled_meta_features_table.index
+        scaled_meta_features_table.index = self.__unscaled_meta_features_table.index
         return scaled_meta_features_table
     
     def __extract_and_append(self, dataset_name, X, y = None):
         columns, features = self.mfe.extract_meta_features(X, y)
 
-        if self._unscaled_meta_features_table is None:
-            self._unscaled_meta_features_table = pd.DataFrame(columns=columns)
+        if self.__unscaled_meta_features_table is None:
+            self.__unscaled_meta_features_table = pd.DataFrame(columns=columns)
 
-        self._unscaled_meta_features_table.loc[dataset_name] = features
+        self.__unscaled_meta_features_table.loc[dataset_name] = features
     
     def __load_train_test_data(self, dataset_name, train_data_path, test_data_path):
         train_df = pd.read_csv(f"{train_data_path}/{dataset_name}.csv")
@@ -61,13 +61,14 @@ class QuantifierRecommender:
 
         return X_train.to_numpy(), y_train.to_numpy(), X_test.to_numpy(), y_test.to_numpy()
 
-    def _save_meta_table(self, meta_table_path: str):
+    def save_meta_table(self, meta_table_path: str):
         if not meta_table_path.endswith(".h5"):
             meta_table_path += ".h5"
 
         with pd.HDFStore(meta_table_path) as store:
             store.put("meta_features_table", self.meta_features_table)
-            store.put("unscaled_meta_features_table", self._unscaled_meta_features_table)
+            store.put("unscaled_meta_features_table", self.__unscaled_meta_features_table)
+            store.put("not_agg_evaluation_table", self.__not_agg_evaluation_table)
             store.put("evaluation_table", self.evaluation_table)
     
     def load_fit_meta_table(self, meta_table_path: str):
@@ -76,10 +77,11 @@ class QuantifierRecommender:
 
         with pd.HDFStore(meta_table_path) as store:
             self.meta_features_table = store.get("meta_features_table")
-            self._unscaled_meta_features_table = store.get("unscaled_meta_features_table")
+            self.__unscaled_meta_features_table = store.get("unscaled_meta_features_table")
+            self.__not_agg_evaluation_table = store.get("not_agg_evaluation_table")
             self.evaluation_table = store.get("evaluation_table")
 
-        data = self._unscaled_meta_features_table.values
+        data = self.__unscaled_meta_features_table.values
         self._fitted_scaler = MinMaxScaler()
         self._fitted_scaler.fit(data)
 
@@ -135,8 +137,8 @@ class QuantifierRecommender:
 
         # Concatenate all the evaluations into a single evaluation table
         # and then sort and aggregate the quantifiers evaluations
-        self.evaluation_table = pd.concat(evaluation_list, axis=0)
-        self.evaluation_table.sort_values(by=['quantifier', 'dataset'], inplace=True)
+        self.__not_agg_evaluation_table = pd.concat(evaluation_list, axis=0)
+        self.evaluation_table = self.__not_agg_evaluation_table.sort_values(by=['quantifier', 'dataset'])
         self.evaluation_table = self.evaluation_table.groupby(["quantifier", "dataset"]).agg(
             abs_error = pd.NamedAgg(column="abs_error", aggfunc="mean"),
             run_time = pd.NamedAgg(column="run_time", aggfunc="mean")
@@ -181,10 +183,10 @@ class QuantifierRecommender:
             scaler = MinMaxScaler()
 
             for dataset in self.evaluation_table.index.levels[1]:
-                unscaled_X_test = self._unscaled_meta_features_table.loc[dataset].values
+                unscaled_X_test = self.__unscaled_meta_features_table.loc[dataset].values
                 y_test = self.evaluation_table.loc[quantifier, dataset]['abs_error']
 
-                unscaled_X_train = self._unscaled_meta_features_table.drop(index=dataset).values
+                unscaled_X_train = self.__unscaled_meta_features_table.drop(index=dataset).values
                 y_train = self.evaluation_table.loc[quantifier].drop(index=dataset)['abs_error'].values
 
                 scaler.fit(unscaled_X_train)

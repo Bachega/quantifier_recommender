@@ -9,10 +9,7 @@ from sklearn.calibration import CalibratedClassifierCV
 from k_quantifier import KQuantifier
 import time
 
-def evaluate_quantifiers(dataset_name, X_train, y_train, X_test, y_test, quantifiers = None):
-    k_quantifier = KQuantifier(k=3)
-    k_quantifier.fit(X_train, y_train)
-
+def evaluate_quantifiers(dataset_name,  X_train, y_train, X_test, y_test, quantifiers = None):
     quantifiers_ = ["ACC", "CC", "DyS", "HDy", "MAX", "MS", "PACC", "PCC", "SMM", "SORD", "X", "KQuantifier"]
 
     if quantifiers is None:
