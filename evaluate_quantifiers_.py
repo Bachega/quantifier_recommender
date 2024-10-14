@@ -12,6 +12,8 @@ import time
 def evaluate_quantifiers(dataset_name,  X_train, y_train, X_test, y_test, quantifiers = None):
     quantifiers_ = ["ACC", "CC", "DyS", "HDy", "MAX", "MS", "PACC", "PCC", "SMM", "SORD", "X", "KQuantifier"]
 
+    k_quantifier = KQuantifier()
+
     if quantifiers is None:
         quantifiers = quantifiers_
     

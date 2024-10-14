@@ -210,7 +210,15 @@ class QuantifierRecommender:
             true_ranking_error = [filtered_result.loc[quantifier, 'true_error'] for quantifier in true_ranking]
 
             recommender_evaluation_table.loc[dataset] = [predicted_ranking, true_ranking, predicted_ranking_error, true_ranking_error]
-
+        
+        # TO DO: RETURN QUANTIFIERS EVALUATION TABLE
+        
         if not path is None:
             recommender_evaluation_table.to_csv(path)
         return recommender_evaluation_table
+
+    def get_data(self):
+        return self.meta_features_table, self.__unscaled_meta_features_table, self.evaluation_table, self.__not_agg_evaluation_table
+
+    def get_copy(self):
+        return self.__not_agg_evaluation_table.copy(deep = True)
