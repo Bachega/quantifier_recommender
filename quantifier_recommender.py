@@ -176,7 +176,7 @@ class QuantifierRecommender:
         return ranking
 
     # Evaluate Quantifier Recommender with Leave-One-Out
-    def leave_one_out_evaluation(self, path: str = None):
+    def leave_one_out_evaluation(self, recommender_eval_path: str = None, quantifiers_eval_path: str = None):
         aux_recommender_evaluation_table = pd.DataFrame(columns=["predicted_error", "true_error"], index=self.evaluation_table.index)
         for quantifier, recommender in self.recommender_dict.items():
             recommender_ = clone(recommender)
@@ -210,15 +210,15 @@ class QuantifierRecommender:
             true_ranking_error = [filtered_result.loc[quantifier, 'true_error'] for quantifier in true_ranking]
 
             recommender_evaluation_table.loc[dataset] = [predicted_ranking, true_ranking, predicted_ranking_error, true_ranking_error]
+          
+        if not recommender_eval_path is None:
+            recommender_evaluation_table.to_csv(recommender_eval_path)
         
-        # TO DO: RETURN QUANTIFIERS EVALUATION TABLE
+        if not quantifiers_eval_path is None:
+            self.__not_agg_evaluation_table.to_csv(quantifiers_eval_path)
         
-        if not path is None:
-            recommender_evaluation_table.to_csv(path)
-        return recommender_evaluation_table
-
-    def get_data(self):
-        return self.meta_features_table, self.__unscaled_meta_features_table, self.evaluation_table, self.__not_agg_evaluation_table
-
-    def get_copy(self):
-        return self.__not_agg_evaluation_table.copy(deep = True)
+        not_agg_evaluation_table = self.__not_agg_evaluation_table.copy(deep=True)
+        not_agg_evaluation_table.sort_values(by=['quantifier', 'dataset'], inplace=True)
+        not_agg_evaluation_table.reset_index(drop=True, inplace=True)
+        
+        return recommender_evaluation_table, not_agg_evaluation_table
