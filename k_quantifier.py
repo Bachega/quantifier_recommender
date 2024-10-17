@@ -1,3 +1,4 @@
+import pandas as pd
 import numpy as np
 
 from sklearn.linear_model import LogisticRegression
@@ -11,7 +12,7 @@ from utils.applyquantifiers import apply_quantifier
 import pdb
 
 class KQuantifier:
-    def __init__(self, k = 1) -> None:
+    def __init__(self, k: int = 1, method: str ="median") -> None:
         self.k = k
         self.__quantifier_recommender = QuantifierRecommender(supervised=True)
         self.__clf = None
@@ -20,6 +21,7 @@ class KQuantifier:
         self.__pos_scores = None
         self.__neg_scores = None
         self.__tprfpr = None
+        self.__method = method
 
     @property
     def k(self):
@@ -48,6 +50,14 @@ class KQuantifier:
         self.__clf.fit(X_train, y_train)
 
     def predict(self, X_test):
+        if self.__method == "median":
+            return self.median_method(X_test)
+        elif self.__method == "weighted":
+            return self.weighted_method(X_test)
+        else:
+            raise ValueError("Method must be 'mean' or 'median'")
+
+    def median_method(self, X_test):
         test_scores = self.__clf.predict_proba(X_test)[:,1]
 
         predicted_prevalence_list = []
@@ -67,5 +77,37 @@ class KQuantifier:
                                                               external_qnt=None))
         return np.median(predicted_prevalence_list)
     
-    def leave_one_out_evaluation(self, recommender_evaluation, quantifiers_evaluation, k_evaluation_path: str = None):
-        pass
+    def evaluation(self, recommender_evaluation, quantifiers_evaluation, k_evaluation_path: str = None):
+        k_quantifier_eval = pd.DataFrame(columns=["quantifier", "dataset", "sample_size",
+                                          "real_prev", "pred_prev", "abs_error",
+                                          "run_time"])
+        for dataset in quantifiers_evaluation["dataset"].unique().tolist():
+            ranking = recommender_evaluation.loc[dataset]["predicted_ranking"]
+            rows_by_dataset = quantifiers_evaluation[quantifiers_evaluation["dataset"] == dataset]
+            alphas = rows_by_dataset["real_prev"].unique().tolist()
+
+            predicted_prev_list = []
+            for k in range(1, len(ranking) + 1):
+                for alph in alphas:
+                    run_time_sum = 0
+                    sample_size = 0
+                    for i in range(0, k):
+                        row = rows_by_dataset[(rows_by_dataset["real_prev"] == alph) & (rows_by_dataset["quantifier"] == ranking[i])]
+                        predicted_prev_list.append(row["pred_prev"].values[0])
+                        run_time_sum += row["run_time"].values[0]
+                        sample_size = row["sample_size"].values[0]
+                    k_quantifier_row = {"quantifier": "Top-" + str(k),
+                                        "dataset": dataset,
+                                        "sample_size": sample_size,
+                                        "real_prev": alph,
+                                        "pred_prev": np.median(predicted_prev_list),
+                                        "abs_error": np.abs(np.median(predicted_prev_list) - alph),
+                                        "run_time": run_time_sum}
+                    k_quantifier_eval.loc[len(k_quantifier_eval)] = k_quantifier_row
+    
+        k_quantifier_eval.sort_values(by=['quantifier', 'dataset'], inplace=True)
+        k_quantifier_eval.reset_index(drop=True, inplace=True)
+        if k_evaluation_path is not None:
+            k_quantifier_eval.to_csv(k_evaluation_path, index=False)
+            
+        return k_quantifier_eval
