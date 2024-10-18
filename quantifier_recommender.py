@@ -222,3 +222,6 @@ class QuantifierRecommender:
         not_agg_evaluation_table.reset_index(drop=True, inplace=True)
         
         return recommender_evaluation_table, not_agg_evaluation_table
+    
+    def get_not_agg(self):
+        return self.__not_agg_evaluation_table

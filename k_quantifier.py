@@ -51,13 +51,13 @@ class KQuantifier:
 
     def predict(self, X_test):
         if self.__method == "median":
-            return self.median_method(X_test)
+            return self.__median_method(X_test)
         elif self.__method == "weighted":
             return self.weighted_method(X_test)
         else:
             raise ValueError("Method must be 'mean' or 'median'")
 
-    def median_method(self, X_test):
+    def __median_method(self, X_test):
         test_scores = self.__clf.predict_proba(X_test)[:,1]
 
         predicted_prevalence_list = []
@@ -86,9 +86,9 @@ class KQuantifier:
             rows_by_dataset = quantifiers_evaluation[quantifiers_evaluation["dataset"] == dataset]
             alphas = rows_by_dataset["real_prev"].unique().tolist()
 
-            predicted_prev_list = []
             for k in range(1, len(ranking) + 1):
                 for alph in alphas:
+                    predicted_prev_list = []
                     run_time_sum = 0
                     sample_size = 0
                     for i in range(0, k):
@@ -96,6 +96,7 @@ class KQuantifier:
                         predicted_prev_list.append(row["pred_prev"].values[0])
                         run_time_sum += row["run_time"].values[0]
                         sample_size = row["sample_size"].values[0]
+                    pdb.set_trace()
                     k_quantifier_row = {"quantifier": "Top-" + str(k),
                                         "dataset": dataset,
                                         "sample_size": sample_size,

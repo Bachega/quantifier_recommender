@@ -85,6 +85,7 @@ class QuantifierEvaluator:
 
         for sample_size in batch_sizes:
             for alpha in alpha_values:
+                pred_pos_prop_dict = {key: [] for key in self.__quantifiers}
                 abs_error_dict = {key: [] for key in self.__quantifiers}
                 run_time_dict = {key: [] for key in self.__quantifiers}
 
@@ -128,6 +129,7 @@ class QuantifierEvaluator:
                         pred_pos_prop = np.round(pred_pos_prop,2)  #predicted class proportion
                         
                         #..............................RESULTS Evaluation.....................................
+                        pred_pos_prop_dict[quantifier].append(pred_pos_prop) # predicted positive proportion
                         abs_error = round(abs(calcultd_pos_prop - pred_pos_prop), 2) # absolute error
                         abs_error_dict[quantifier].append(abs_error)
                 
