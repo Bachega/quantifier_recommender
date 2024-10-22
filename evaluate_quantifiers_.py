@@ -23,7 +23,7 @@ def evaluate_quantifiers(dataset_name,  X_train, y_train, X_test, y_test, quanti
     if not set(quantifiers).issubset(quantifiers_):
         raise ValueError(f"List of quantifiers contains invalid values (like names of non implemented quantifiers). Available quantifiers are {quantifiers_}")
 
-    evaluation_table = pd.DataFrame(columns=["quantifier", "dataset", "sample_size","real_prev","pred_prev","abs_error","run_time"])
+    evaluation_table = pd.DataFrame(columns=["quantifier", "dataset", "sample_size","alpha","pred_prev","abs_error","run_time"])
     
     clf = LogisticRegression(random_state=42, n_jobs=-1)
     

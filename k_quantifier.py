@@ -79,12 +79,12 @@ class KQuantifier:
     
     def evaluation(self, recommender_evaluation, quantifiers_evaluation, k_evaluation_path: str = None):
         k_quantifier_eval = pd.DataFrame(columns=["quantifier", "dataset", "sample_size",
-                                          "real_prev", "pred_prev", "abs_error",
+                                          "alpha", "pred_prev", "abs_error",
                                           "run_time"])
         for dataset in quantifiers_evaluation["dataset"].unique().tolist():
             ranking = recommender_evaluation.loc[dataset]["predicted_ranking"]
             rows_by_dataset = quantifiers_evaluation[quantifiers_evaluation["dataset"] == dataset]
-            alphas = rows_by_dataset["real_prev"].unique().tolist()
+            alphas = rows_by_dataset["alpha"].unique().tolist()
 
             for k in range(1, len(ranking) + 1):
                 for alph in alphas:
@@ -92,7 +92,7 @@ class KQuantifier:
                     run_time_sum = 0
                     sample_size = 0
                     for i in range(0, k):
-                        row = rows_by_dataset[(rows_by_dataset["real_prev"] == alph) & (rows_by_dataset["quantifier"] == ranking[i])]
+                        row = rows_by_dataset[(rows_by_dataset["alpha"] == alph) & (rows_by_dataset["quantifier"] == ranking[i])]
                         predicted_prev_list.append(row["pred_prev"].values[0])
                         run_time_sum += row["run_time"].values[0]
                         sample_size = row["sample_size"].values[0]
@@ -100,7 +100,7 @@ class KQuantifier:
                     k_quantifier_row = {"quantifier": "Top-" + str(k),
                                         "dataset": dataset,
                                         "sample_size": sample_size,
-                                        "real_prev": alph,
+                                        "alpha": alph,
                                         "pred_prev": np.median(predicted_prev_list),
                                         "abs_error": np.abs(np.median(predicted_prev_list) - alph),
                                         "run_time": run_time_sum}

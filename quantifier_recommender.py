@@ -109,7 +109,7 @@ class QuantifierRecommender:
         # Appending the evaluations to a list and then concatenating them
         # to a pandas dataframe is O(n)
         evaluation_list = []
-        for _, dataset in enumerate(dataset_list):
+        for i, dataset in enumerate(dataset_list):
             dataset_name = dataset.split(".csv")[0]
             
             # Meta-Features extraction
@@ -131,14 +131,34 @@ class QuantifierRecommender:
                                                                                     y_train,
                                                                                     X_test,
                                                                                     y_test))
-            
+            # DELETE THIS
+            if i == 5:
+                break
+        # # DELETE THIS
+        # eval_table = pd.concat(evaluation_list, axis=0)
+        # eval_table.to_csv("./eval_table.csv", index=False)
+        # return eval_table
+
         # Normalize the extracted meta-features
         self.meta_features_table = self.__get_normalized_meta_features_table()
 
         # Concatenate all the evaluations into a single evaluation table
         # and then sort and aggregate the quantifiers evaluations
         self.__not_agg_evaluation_table = pd.concat(evaluation_list, axis=0)
+
         self.evaluation_table = self.__not_agg_evaluation_table.sort_values(by=['quantifier', 'dataset'])
+        self.evaluation_table = self.evaluation_table.groupby(["quantifier", "dataset", "alpha"]).agg(
+            pred_prev = pd.NamedAgg(column="pred_prev", aggfunc="mean"),
+            abs_error = pd.NamedAgg(column="abs_error", aggfunc="mean"),
+            sample_size = pd.NamedAgg(column="sample_size", aggfunc="first"),
+            sampling_seed = pd.NamedAgg(column="sampling_seed", aggfunc="first"),
+            run_time = pd.NamedAgg(column="run_time", aggfunc="mean")
+        )
+
+        # self.evaluation_table["sample_size"] = self.evaluation_table["sample_size"].astype(int)
+        self.evaluation_table = self.evaluation_table.reset_index()
+        self.evaluation_table = self.evaluation_table[['quantifier', 'dataset', 'sample_size', 'sampling_seed', 'alpha', 'pred_prev', 'abs_error', 'run_time']]
+        # self.evaluation_table = self.__not_agg_evaluation_table.sort_values(by=['quantifier', 'dataset'])
         self.evaluation_table = self.evaluation_table.groupby(["quantifier", "dataset"]).agg(
             abs_error = pd.NamedAgg(column="abs_error", aggfunc="mean"),
             run_time = pd.NamedAgg(column="run_time", aggfunc="mean")

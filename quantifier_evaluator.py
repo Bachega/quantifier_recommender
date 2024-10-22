@@ -25,7 +25,9 @@ class QuantifierEvaluator:
     __qtf_evaluation_table_columns = ["quantifier",
                                       "dataset",
                                       "sample_size",
-                                      "real_prev",
+                                      "sampling_seed",
+                                      "iteration",
+                                      "alpha",
                                       "pred_prev",
                                       "abs_error",
                                       "run_time"]
@@ -33,12 +35,14 @@ class QuantifierEvaluator:
     def __init__(self) -> None:
         self.qtf_evaluation_table = pd.DataFrame(columns=self.__qtf_evaluation_table_columns)
 
-    def __append_to_qtf_evaluation_table(self, quantifier, dataset_name, sample_size, alpha, pred_pos_prop, abs_error, run_time):        
+    def __append_to_qtf_evaluation_table(self, quantifier, dataset_name, sample_size, sampling_seed, iteration, alpha, pred_prev, abs_error, run_time):        
         self.qtf_evaluation_table.loc[len(self.qtf_evaluation_table.index)] = [quantifier,
                                                                                dataset_name,
                                                                                sample_size,
+                                                                               sampling_seed,
+                                                                               iteration,
                                                                                alpha,
-                                                                               pred_pos_prop,
+                                                                               pred_prev,
                                                                                abs_error,
                                                                                run_time]
 
@@ -85,9 +89,9 @@ class QuantifierEvaluator:
 
         for sample_size in batch_sizes:
             for alpha in alpha_values:
-                pred_pos_prop_dict = {key: [] for key in self.__quantifiers}
-                abs_error_dict = {key: [] for key in self.__quantifiers}
-                run_time_dict = {key: [] for key in self.__quantifiers}
+                # pred_pos_prop_dict = {key: [] for key in self.__quantifiers}
+                # abs_error_dict = {key: [] for key in self.__quantifiers}
+                # run_time_dict = {key: [] for key in self.__quantifiers}
 
                 # Repeats the same experiment (to reduce variance)
                 # for iter in range(1): # ----------------------------> Change this to niterations
@@ -95,8 +99,9 @@ class QuantifierEvaluator:
                     pos_size = int(round(sample_size * alpha, 2))
                     neg_size = sample_size - pos_size
                     
-                    sample_test_pos = df_test_pos.sample( int(pos_size), replace = False)
-                    sample_test_neg = df_test_neg.sample( int(neg_size), replace = False)
+                    sampling_seed = np.random.randint(0, 10000)
+                    sample_test_pos = df_test_pos.sample( int(pos_size), replace = False, random_state=sampling_seed)
+                    sample_test_neg = df_test_neg.sample( int(neg_size), replace = False, random_state=sampling_seed)
                     
                     sample_test = pd.concat([sample_test_pos, sample_test_neg])
                     test_label = sample_test[sample_test.columns[-1]]
@@ -124,25 +129,31 @@ class QuantifierEvaluator:
                                                         test_quapy=None,
                                                         external_qnt=None)
                         stop = time.perf_counter()
-                        run_time_dict[quantifier].append(stop - start)
-
-                        pred_pos_prop = np.round(pred_pos_prop,2)  #predicted class proportion
-                        
+                        run_time = stop - start
+                        pred_pos_prop = np.round(pred_pos_prop, 2)  #predicted class proportion
                         #..............................RESULTS Evaluation.....................................
-                        pred_pos_prop_dict[quantifier].append(pred_pos_prop) # predicted positive proportion
                         abs_error = round(abs(calcultd_pos_prop - pred_pos_prop), 2) # absolute error
-                        abs_error_dict[quantifier].append(abs_error)
+
+                        self.__append_to_qtf_evaluation_table(quantifier,
+                                                              dataset_name,
+                                                              sample_size,
+                                                              sampling_seed,
+                                                              iter+1,
+                                                              alpha,
+                                                              pred_pos_prop,
+                                                              abs_error,
+                                                              run_time)
                 
-                for quantifier in abs_error_dict.keys():
-                    self.__append_to_qtf_evaluation_table(quantifier,
-                                                          dataset_name,
-                                                          sample_size,
-                                                          alpha,
-                                                          pred_pos_prop,
-                                                          np.mean(abs_error_dict[quantifier]),
-                                                          np.min(run_time_dict[quantifier]))
-                    abs_error_dict[quantifier].clear()
-                    run_time_dict[quantifier].clear()
+                # for quantifier in abs_error_dict.keys():
+                #     self.__append_to_qtf_evaluation_table(quantifier,
+                #                                           dataset_name,
+                #                                           sample_size,
+                #                                           alpha,
+                #                                           pred_pos_prop,
+                #                                           np.mean(abs_error_dict[quantifier]),
+                #                                           np.min(run_time_dict[quantifier]))
+                    # abs_error_dict[quantifier].clear()
+                    # run_time_dict[quantifier].clear()
         
         # self.__sort_qtf_evaluation_table()
         return self.qtf_evaluation_table
