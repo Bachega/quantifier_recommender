@@ -151,15 +151,20 @@ def run_quantifiers(dataset_name: str):
 
 if __name__ == "__main__":
     
-    
-    # recommender.save_meta_table()
-    print("Starting...")
-    start = time.perf_counter()
     recommender = QuantifierRecommender(supervised=True)
     recommender.load_fit_meta_table("./recommender_data/meta_table.h5")
-    stop = time.perf_counter()
+    X_test, y_test = load_test_data("anuranCalls", supervised=True)
+    print(recommender.predict(X_test, y_test))
+    
+    
+    # recommender.save_meta_table()
+    # print("Starting...")
+    # start = time.perf_counter()
+    # recommender = QuantifierRecommender(supervised=True)
+    # recommender.load_fit_meta_table("./recommender_data/meta_table.h5")
+    # stop = time.perf_counter()
 
-    print(f"Time: {stop - start} s")
+    # print(f"Time: {stop - start} s")
     
     # recommender.fit(datasets_path="./datasets/", train_data_path="./data/train_data/", test_data_path="./data/test_data/")
     # recommender.save_meta_table("recommender_data/meta_features_table.csv", "recommender_data/evaluation_table.csv")

@@ -32,8 +32,14 @@ class QuantifierEvaluator:
                                       "abs_error",
                                       "run_time"]
     
-    def __init__(self) -> None:
+    def __init__(self, _regenerate_seeds = False) -> None:
         self.qtf_evaluation_table = pd.DataFrame(columns=self.__qtf_evaluation_table_columns)
+
+        if _regenerate_seeds:
+            self.__seeds = self.__generate_seeds()
+            self.__save_seeds()
+        else:
+            self.__seeds = self.__load_seeds()
 
     def __append_to_qtf_evaluation_table(self, quantifier, dataset_name, sample_size, sampling_seed, iteration, alpha, pred_prev, abs_error, run_time):        
         self.qtf_evaluation_table.loc[len(self.qtf_evaluation_table.index)] = [quantifier,
@@ -45,6 +51,20 @@ class QuantifierEvaluator:
                                                                                pred_prev,
                                                                                abs_error,
                                                                                run_time]
+    
+    def __generate_seeds(self, size: int = 1000):
+        seeds = np.random.choice(np.arange(size), size=int(size), replace=False)
+        seeds = seeds.astype(int)
+        return seeds
+    
+    def __save_seeds(self, path: str = "./evaluator_data/seeds.npy"):
+        np.save(path, self.__seeds)
+    
+    def __load_seeds(self, path: str = "./evaluator_data/seeds.npy"):
+        return np.load(path)
+
+    def __get_seed(self, index):
+        return self.__seeds[index]
 
     def evaluate_quantifiers(self, dataset_name, X_train, y_train, X_test, y_test, quantifiers = None):
         if quantifiers is None:
@@ -87,6 +107,7 @@ class QuantifierEvaluator:
         df_test_pos = df_test.loc[df_test[df_test.columns[-1]] == 1]
         df_test_neg = df_test.loc[df_test[df_test.columns[-1]] == 0]
 
+        seed_index = 0
         for sample_size in batch_sizes:
             for alpha in alpha_values:
                 # pred_pos_prop_dict = {key: [] for key in self.__quantifiers}
@@ -99,7 +120,9 @@ class QuantifierEvaluator:
                     pos_size = int(round(sample_size * alpha, 2))
                     neg_size = sample_size - pos_size
                     
-                    sampling_seed = np.random.randint(0, 10000)
+                    sampling_seed = self.__get_seed(seed_index)
+                    seed_index += 1
+
                     sample_test_pos = df_test_pos.sample( int(pos_size), replace = False, random_state=sampling_seed)
                     sample_test_neg = df_test_neg.sample( int(neg_size), replace = False, random_state=sampling_seed)
                     

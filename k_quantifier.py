@@ -38,7 +38,7 @@ class KQuantifier:
         self.__k = k
     
     def fit(self, X_train, y_train):
-        # self.__quantifier_recommender.load_fit_meta_table("./recommender_data/meta_table.h5")
+        self.__quantifier_recommender.load_fit_meta_table("./recommender_data/meta_table.h5")
         self.__k_quantifiers = self.__quantifier_recommender.predict(X_train, y_train, k=self.k)
         self.__clf = LogisticRegression(random_state=42, n_jobs=-1)
         self.__calib_clf = CalibratedClassifierCV(self.__clf, cv=3, n_jobs=-1)
@@ -78,33 +78,38 @@ class KQuantifier:
         return np.median(predicted_prevalence_list)
     
     def evaluation(self, recommender_evaluation, quantifiers_evaluation, k_evaluation_path: str = None):
-        k_quantifier_eval = pd.DataFrame(columns=["quantifier", "dataset", "sample_size",
-                                          "alpha", "pred_prev", "abs_error",
-                                          "run_time"])
+        k_quantifier_eval = pd.DataFrame(columns=["quantifier", "dataset", "sample_size", "sampling_seed",
+                                          "iteration", "alpha", "pred_prev", "abs_error", "run_time"])
         for dataset in quantifiers_evaluation["dataset"].unique().tolist():
             ranking = recommender_evaluation.loc[dataset]["predicted_ranking"]
             rows_by_dataset = quantifiers_evaluation[quantifiers_evaluation["dataset"] == dataset]
             alphas = rows_by_dataset["alpha"].unique().tolist()
+            iterations = rows_by_dataset["iteration"].unique().tolist()
 
             for k in range(1, len(ranking) + 1):
                 for alph in alphas:
-                    predicted_prev_list = []
-                    run_time_sum = 0
-                    sample_size = 0
-                    for i in range(0, k):
-                        row = rows_by_dataset[(rows_by_dataset["alpha"] == alph) & (rows_by_dataset["quantifier"] == ranking[i])]
-                        predicted_prev_list.append(row["pred_prev"].values[0])
-                        run_time_sum += row["run_time"].values[0]
-                        sample_size = row["sample_size"].values[0]
-                    pdb.set_trace()
-                    k_quantifier_row = {"quantifier": "Top-" + str(k),
-                                        "dataset": dataset,
-                                        "sample_size": sample_size,
-                                        "alpha": alph,
-                                        "pred_prev": np.median(predicted_prev_list),
-                                        "abs_error": np.abs(np.median(predicted_prev_list) - alph),
-                                        "run_time": run_time_sum}
-                    k_quantifier_eval.loc[len(k_quantifier_eval)] = k_quantifier_row
+                    for iter in iterations:
+                        predicted_prev_list = []
+                        run_time_sum = 0
+                        sample_size = 0
+                        sampling_seed = 0
+                        for i in range(0, k):
+                            row = rows_by_dataset[(rows_by_dataset["alpha"] == alph) & (rows_by_dataset["quantifier"] == ranking[i]) & (rows_by_dataset["iteration"] == iter)]
+                            sampling_seed = row["sampling_seed"].values[0]
+                            predicted_prev_list.append(row["pred_prev"].values[0])
+                            run_time_sum += row["run_time"].values[0]
+                            sample_size = row["sample_size"].values[0]
+                        # pdb.set_trace()
+                        k_quantifier_row = {"quantifier": "Top-" + str(k),
+                                            "dataset": dataset,
+                                            "sample_size": sample_size,
+                                            "sampling_seed": sampling_seed,
+                                            "iteration": iter,
+                                            "alpha": alph,
+                                            "pred_prev": np.median(predicted_prev_list),
+                                            "abs_error": np.abs(np.median(predicted_prev_list) - alph),
+                                            "run_time": run_time_sum}
+                        k_quantifier_eval.loc[len(k_quantifier_eval)] = k_quantifier_row
     
         k_quantifier_eval.sort_values(by=['quantifier', 'dataset'], inplace=True)
         k_quantifier_eval.reset_index(drop=True, inplace=True)

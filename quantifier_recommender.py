@@ -132,8 +132,8 @@ class QuantifierRecommender:
                                                                                     X_test,
                                                                                     y_test))
             # DELETE THIS
-            # if i == 5:
-            #     break
+            if i == 5:
+                break
         # # DELETE THIS
         # eval_table = pd.concat(evaluation_list, axis=0)
         # eval_table.to_csv("./eval_table.csv", index=False)
@@ -155,10 +155,8 @@ class QuantifierRecommender:
             run_time = pd.NamedAgg(column="run_time", aggfunc="mean")
         )
 
-        # self.evaluation_table["sample_size"] = self.evaluation_table["sample_size"].astype(int)
         self.evaluation_table = self.evaluation_table.reset_index()
         self.evaluation_table = self.evaluation_table[['quantifier', 'dataset', 'sample_size', 'sampling_seed', 'alpha', 'pred_prev', 'abs_error', 'run_time']]
-        # self.evaluation_table = self.__not_agg_evaluation_table.sort_values(by=['quantifier', 'dataset'])
         self.evaluation_table = self.evaluation_table.groupby(["quantifier", "dataset"]).agg(
             abs_error = pd.NamedAgg(column="abs_error", aggfunc="mean"),
             run_time = pd.NamedAgg(column="run_time", aggfunc="mean")
