@@ -80,11 +80,6 @@ class QuantifierEvaluator:
         
         clf = None
         clf = LogisticRegression(random_state=42, n_jobs=-1)
-        # try:
-        #     clf = joblib.load(f"./data/estimator_parameters/{dataset_name}.joblib")
-        #     clf.n_jobs = -1
-        # except:
-        #     clf = LogisticRegression(random_state=42, n_jobs=-1)
         
         calib_clf = CalibratedClassifierCV(clf, cv=3, n_jobs=-1)
         calib_clf.fit(X_train, y_train)

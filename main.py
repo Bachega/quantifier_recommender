@@ -151,8 +151,8 @@ def run_quantifiers(dataset_name: str):
 
 if __name__ == "__main__":
     
-    recommender = QuantifierRecommender(supervised=True)
-    recommender.load_fit_meta_table("./recommender_data/meta_table.h5")
+    # recommender = QuantifierRecommender(supervised=True)
+    # recommender.load_fit_meta_table("./recommender_data/meta_table.h5")
     X_test, y_test = load_test_data("anuranCalls", supervised=True)
     print(recommender.predict(X_test, y_test))
     

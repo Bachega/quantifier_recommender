@@ -38,6 +38,9 @@ class KQuantifier:
         self.__k = k
     
     def fit(self, X_train, y_train):
+        if not isinstance(X_train, np.ndarray) or not isinstance(y_train, np.ndarray):
+            raise TypeError("X_train and y_train must be numpy arrays")
+        
         self.__quantifier_recommender.load_fit_meta_table("./recommender_data/meta_table.h5")
         self.__k_quantifiers = self.__quantifier_recommender.predict(X_train, y_train, k=self.k)
         self.__clf = LogisticRegression(random_state=42, n_jobs=-1)
@@ -53,7 +56,7 @@ class KQuantifier:
         if self.__method == "median":
             return self.__median_method(X_test)
         elif self.__method == "weighted":
-            return self.weighted_method(X_test)
+            return self.__weighted_method(X_test)
         else:
             raise ValueError("Method must be 'mean' or 'median'")
 
@@ -77,6 +80,34 @@ class KQuantifier:
                                                               external_qnt=None))
         return np.median(predicted_prevalence_list)
     
+    def __weighted_method(self, X_test):
+        test_scores = self.__clf.predict_proba(X_test)[:,1]
+
+        error_list = [err[1] for err in list(self.__k_quantifiers.values())]
+        denominator = sum([1/err for err in error_list])
+
+        weight_list = [(1/err)/denominator for err in error_list]
+
+        final_predicted_prevalence = 0
+        i = 0
+        for _, quantifier in self.__k_quantifiers.items():
+            predicted_prevalence = apply_quantifier(qntMethod=quantifier[0],
+                                                    clf=self.__calib_clf,
+                                                    scores=self.__scores,
+                                                    p_score=self.__pos_scores,
+                                                    n_score=self.__neg_scores,
+                                                    train_labels=None,
+                                                    test_score=test_scores,
+                                                    TprFpr=self.__tprfpr,
+                                                    thr=0.5,
+                                                    measure='hellinger',
+                                                    test_data=X_test,
+                                                    test_quapy=None,
+                                                    external_qnt=None)
+            final_predicted_prevalence += weight_list[i] * predicted_prevalence
+            i += 1
+        return final_predicted_prevalence
+
     def evaluation(self, recommender_evaluation, quantifiers_evaluation, k_evaluation_path: str = None):
         k_quantifier_eval = pd.DataFrame(columns=["quantifier", "dataset", "sample_size", "sampling_seed",
                                           "iteration", "alpha", "pred_prev", "abs_error", "run_time"])
