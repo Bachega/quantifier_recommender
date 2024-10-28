@@ -13,6 +13,9 @@ import pdb
 
 class KQuantifier:
     def __init__(self, k: int = 1, method: str ="median") -> None:
+        if method not in ["median", "weighted"]:
+            raise ValueError("Method must be 'median' or 'weighted'")
+    
         self.k = k
         self.__quantifier_recommender = QuantifierRecommender(supervised=True)
         self.__clf = None
@@ -56,9 +59,7 @@ class KQuantifier:
         if self.__method == "median":
             return self.__median_method(X_test)
         elif self.__method == "weighted":
-            return self.__weighted_method(X_test)
-        else:
-            raise ValueError("Method must be 'mean' or 'median'")
+            return self.__weighted_method(X_test)        
 
     def __median_method(self, X_test):
         test_scores = self.__clf.predict_proba(X_test)[:,1]
@@ -124,13 +125,17 @@ class KQuantifier:
                         run_time_sum = 0
                         sample_size = 0
                         sampling_seed = 0
+
+                        error_list = recommender_evaluation.loc[dataset]['predicted_ranking_error'][:k]
+                        denominator = sum([1/err for err in error_list])
+                        weight_list = [(1/err)/denominator for err in error_list]
                         for i in range(0, k):
                             row = rows_by_dataset[(rows_by_dataset["alpha"] == alph) & (rows_by_dataset["quantifier"] == ranking[i]) & (rows_by_dataset["iteration"] == iter)]
                             sampling_seed = row["sampling_seed"].values[0]
                             predicted_prev_list.append(row["pred_prev"].values[0])
                             run_time_sum += row["run_time"].values[0]
                             sample_size = row["sample_size"].values[0]
-                        # pdb.set_trace()
+                        # MEDIAN METHOD
                         k_quantifier_row = {"quantifier": "Top-" + str(k),
                                             "dataset": dataset,
                                             "sample_size": sample_size,
@@ -139,6 +144,18 @@ class KQuantifier:
                                             "alpha": alph,
                                             "pred_prev": np.median(predicted_prev_list),
                                             "abs_error": np.abs(np.median(predicted_prev_list) - alph),
+                                            "run_time": run_time_sum}
+                        k_quantifier_eval.loc[len(k_quantifier_eval)] = k_quantifier_row
+
+                        # WEIGHTED METHOD
+                        k_quantifier_row = {"quantifier": "Top-" + str(k) + "W",
+                                            "dataset": dataset,
+                                            "sample_size": sample_size,
+                                            "sampling_seed": sampling_seed,
+                                            "iteration": iter,
+                                            "alpha": alph,
+                                            "pred_prev": np.sum(np.array(predicted_prev_list) * np.array(weight_list)),
+                                            "abs_error": np.abs(np.sum(np.array(predicted_prev_list) * np.array(weight_list)) - alph),
                                             "run_time": run_time_sum}
                         k_quantifier_eval.loc[len(k_quantifier_eval)] = k_quantifier_row
     
