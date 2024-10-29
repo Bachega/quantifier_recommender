@@ -4,12 +4,10 @@ import numpy as np
 from sklearn.linear_model import LogisticRegression
 from sklearn.calibration import CalibratedClassifierCV
 
-from quantifier_recommender import QuantifierRecommender
+from regression_recommender import RegressionRecommender
 from utils.getTrainingScores import getTrainingScores
 from utils.getTPRFPR import getTPRFPR
 from utils.applyquantifiers import apply_quantifier
-
-import pdb
 
 class KQuantifier:
     def __init__(self, k: int = 1, method: str ="median") -> None:
@@ -17,7 +15,7 @@ class KQuantifier:
             raise ValueError("Method must be 'median' or 'weighted'")
     
         self.k = k
-        self.__quantifier_recommender = QuantifierRecommender(supervised=True)
+        self.__quantifier_recommender = RegressionRecommender(supervised=True)
         self.__clf = None
         self.__calib_clf = None
         self.__scores = None
@@ -44,8 +42,8 @@ class KQuantifier:
         if not isinstance(X_train, np.ndarray) or not isinstance(y_train, np.ndarray):
             raise TypeError("X_train and y_train must be numpy arrays")
         
-        self.__quantifier_recommender.load_fit_meta_table("./recommender_data/meta_table.h5")
-        self.__k_quantifiers = self.__quantifier_recommender.predict(X_train, y_train, k=self.k)
+        # self.__quantifier_recommender.load_fit_meta_table("./recommender_data/meta_table.h5")
+        self.__k_quantifiers = self.__quantifier_recommender.recommend(X_train, y_train, k=self.k)
         self.__clf = LogisticRegression(random_state=42, n_jobs=-1)
         self.__calib_clf = CalibratedClassifierCV(self.__clf, cv=3, n_jobs=-1)
         self.__calib_clf.fit(X_train, y_train)
@@ -148,7 +146,7 @@ class KQuantifier:
                         k_quantifier_eval.loc[len(k_quantifier_eval)] = k_quantifier_row
 
                         # WEIGHTED METHOD
-                        k_quantifier_row = {"quantifier": "Top-" + str(k) + "W",
+                        k_quantifier_row = {"quantifier": "Top-" + str(k) + "+W",
                                             "dataset": dataset,
                                             "sample_size": sample_size,
                                             "sampling_seed": sampling_seed,

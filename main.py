@@ -5,7 +5,7 @@ import pdb
 import time
 import timeit
 
-from quantifier_recommender import QuantifierRecommender
+from regression_recommender import QuantifierRecommender
 from quantifier_evaluator import QuantifierEvaluator
 from k_quantifier import KQuantifier
 
