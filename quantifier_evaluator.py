@@ -29,11 +29,11 @@ class QuantifierEvaluator:
                                       "iteration",
                                       "alpha",
                                       "pred_prev",
-                                      "abs_error",
+                                      "none",
                                       "run_time"]
     
     def __init__(self, _regenerate_seeds = False) -> None:
-        self.qtf_evaluation_table = pd.DataFrame(columns=self.__qtf_evaluation_table_columns)
+        self.qtf_evaluation_table = None 
 
         if _regenerate_seeds:
             self.__seeds = self.__generate_seeds()
@@ -41,7 +41,7 @@ class QuantifierEvaluator:
         else:
             self.__seeds = self.__load_seeds()
 
-    def __append_to_qtf_evaluation_table(self, quantifier, dataset_name, sample_size, sampling_seed, iteration, alpha, pred_prev, abs_error, run_time):        
+    def __append_to_qtf_evaluation_table(self, quantifier, dataset_name, sample_size, sampling_seed, iteration, alpha, pred_prev, perf_metric, run_time):        
         self.qtf_evaluation_table.loc[len(self.qtf_evaluation_table.index)] = [quantifier,
                                                                                dataset_name,
                                                                                sample_size,
@@ -49,7 +49,7 @@ class QuantifierEvaluator:
                                                                                iteration,
                                                                                alpha,
                                                                                pred_prev,
-                                                                               abs_error,
+                                                                               perf_metric,
                                                                                run_time]
     
     def __generate_seeds(self, size: int = 1000):
@@ -66,7 +66,15 @@ class QuantifierEvaluator:
     def __get_seed(self, index):
         return self.__seeds[index]
 
-    def evaluate_quantifiers(self, dataset_name, X_train, y_train, X_test, y_test, quantifiers = None):
+    def evaluate_quantifiers(self, dataset_name, X_train, y_train, X_test, y_test, quantifiers = None, func_type: str = "cost"):
+        assert func_type in ["cost", "utility"], "Argument 'func_type' needs to be either 'cost' or 'utility'"
+
+        if func_type == "cost":
+            self.__qtf_evaluation_table_columns[7] = "abs_error"
+        elif func_type == "utility":
+            self.__qtf_evaluation_table_columns[7] = "inv_abs_error"
+        self.qtf_evaluation_table = pd.DataFrame(columns=self.__qtf_evaluation_table_columns)
+
         if quantifiers is None:
             quantifiers = self.__quantifiers
         
@@ -76,8 +84,6 @@ class QuantifierEvaluator:
         if not set(quantifiers).issubset(self.__quantifiers):
             raise ValueError(f"List of quantifiers contains invalid values (like names of non implemented quantifiers). Available quantifiers are {self.__quantifiers}")
 
-        self.qtf_evaluation_table = pd.DataFrame(columns=self.__qtf_evaluation_table_columns)
-        
         clf = None
         clf = LogisticRegression(random_state=42, n_jobs=-1)
         
@@ -150,7 +156,11 @@ class QuantifierEvaluator:
                         run_time = stop - start
                         pred_pos_prop = np.round(pred_pos_prop, 2)  #predicted class proportion
                         #..............................RESULTS Evaluation.....................................
-                        abs_error = round(abs(calcultd_pos_prop - pred_pos_prop), 2) # absolute error
+                        if func_type == "cost":
+                            perf_metric = round(abs(calcultd_pos_prop - pred_pos_prop), 2)
+                        elif func_type == "utility":
+                            perf_metric = round((1 / (1 + abs(calcultd_pos_prop - pred_pos_prop))), 2)
+                        # abs_error = round(abs(calcultd_pos_prop - pred_pos_prop), 2) # absolute error
 
                         self.__append_to_qtf_evaluation_table(quantifier,
                                                               dataset_name,
@@ -159,7 +169,7 @@ class QuantifierEvaluator:
                                                               iter+1,
                                                               alpha,
                                                               pred_pos_prop,
-                                                              abs_error,
+                                                              perf_metric,
                                                               run_time)
                 
                 # for quantifier in abs_error_dict.keys():

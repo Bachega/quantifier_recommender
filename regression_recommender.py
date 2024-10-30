@@ -5,7 +5,7 @@ from sklearn.ensemble import RandomForestRegressor
 from sklearn.preprocessing import MinMaxScaler
 from sklearn.base import is_regressor, clone
 
-from _base_recommender import BaseRecommender
+from base_recommender import BaseRecommender
 
 class RegressionRecommender(BaseRecommender):
     def __init__(self, supervised: bool = True, recommender_model = RandomForestRegressor(), _load: bool = True):
