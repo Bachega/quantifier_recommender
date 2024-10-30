@@ -17,6 +17,7 @@ class BaseRecommender(ABC):
             self.supervised = supervised   
             self._fitted = False
             self._fitted_scaler = None
+            self._scaler_method = None
 
     @abstractmethod
     def fit(self, complete_data_path: str, train_data_path: str, test_data_path: str):
@@ -37,6 +38,7 @@ class BaseRecommender(ABC):
             self._fitted_scaler = MinMaxScaler()
         elif method == "zscore":
             self._fitted_scaler = StandardScaler()
+        self._scaler_method = method
         self._fitted_scaler.fit(data)
 
         scaled_meta_features_table = pd.DataFrame(self._fitted_scaler.transform(data), columns=columns)

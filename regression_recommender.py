@@ -2,7 +2,7 @@ import os
 import numpy as np
 import pandas as pd
 from sklearn.ensemble import RandomForestRegressor
-from sklearn.preprocessing import MinMaxScaler
+from sklearn.preprocessing import MinMaxScaler, StandardScaler
 from sklearn.base import is_regressor, clone
 
 from base_recommender import BaseRecommender
@@ -28,6 +28,7 @@ class RegressionRecommender(BaseRecommender):
             store.put("unscaled_meta_features_table", self._unscaled_meta_features_table)
             store.put("not_agg_evaluation_table", self._not_agg_evaluation_table)
             store.put("evaluation_table", self.evaluation_table)
+            store.put('scaler_method', pd.Series([self._scaler_method]), format="table")
     
     def load_fit_meta_table(self, meta_table_path: str):
         if not meta_table_path.endswith(".h5"):
@@ -38,9 +39,13 @@ class RegressionRecommender(BaseRecommender):
             self._unscaled_meta_features_table = store.get("unscaled_meta_features_table")
             self._not_agg_evaluation_table = store.get("not_agg_evaluation_table")
             self.evaluation_table = store.get("evaluation_table")
+            self._scaler_method = store.get('scaler_method').values[0]
 
         data = self._unscaled_meta_features_table.values
-        self._fitted_scaler = MinMaxScaler()
+        if self._scaler_method == "zscore":
+            self._fitted_scaler = StandardScaler()
+        elif self._scaler_method == "minmax":
+            self._fitted_scaler = MinMaxScaler()
         self._fitted_scaler.fit(data)
 
         X_train = self.meta_features_table.values

@@ -154,12 +154,12 @@ class QuantifierEvaluator:
                                                         external_qnt=None)
                         stop = time.perf_counter()
                         run_time = stop - start
-                        pred_pos_prop = np.round(pred_pos_prop, 2)  #predicted class proportion
+                        # pred_pos_prop = np.round(pred_pos_prop, 2)  #predicted class proportion
                         #..............................RESULTS Evaluation.....................................
                         if func_type == "cost":
-                            perf_metric = round(abs(calcultd_pos_prop - pred_pos_prop), 2)
+                            perf_metric = round(abs(calcultd_pos_prop - pred_pos_prop), 6)
                         elif func_type == "utility":
-                            perf_metric = round((1 / (1 + abs(calcultd_pos_prop - pred_pos_prop))), 2)
+                            perf_metric = round((1 / (1 + abs(calcultd_pos_prop - pred_pos_prop))), 6)
                         # abs_error = round(abs(calcultd_pos_prop - pred_pos_prop), 2) # absolute error
 
                         self.__append_to_qtf_evaluation_table(quantifier,
