@@ -3,6 +3,7 @@ from base_recommender import BaseRecommender
 import os
 import pandas as pd
 import numpy as np
+from sklearn.base import clone
 from sklearn.preprocessing import MinMaxScaler, StandardScaler
 from sklearn.neighbors import NearestNeighbors
 
@@ -16,6 +17,16 @@ class KNNRecommender(BaseRecommender):
             self._unscaled_meta_features_table = None
             self.meta_features_table = None
             self.arr_table = None
+            self.n_neighbors = n_neighbors
+    
+    @property
+    def n_neighbors(self):
+        return self._n_neighbors
+
+    @n_neighbors.setter
+    def n_neighbors(self, n_neighbors: int):
+        assert n_neighbors > 0 or n_neighbors == -1, "The number of neighbors must be greater than 0 or -1 (all neighbors)."
+        self._n_neighbors = n_neighbors
             
     def fit(self, complete_data_path: str, train_data_path: str, test_data_path: str) -> None:
         dataset_list = [csv for csv in os.listdir(complete_data_path) if csv.endswith(".csv")]
@@ -106,11 +117,17 @@ class KNNRecommender(BaseRecommender):
             arr_idx = self.meta_features_table.iloc[idx].name
             new_arr_array += np.array(self.arr_table.loc[arr_idx].values) * w
 
-        # List of tuples: (quantifier, ARR value)
+        # List of tuples: (quantifier, ARR value) sorted by their ARR value
         quantifier_arr_pairs = list(zip(quantifiers, new_arr_array))
+        quantifier_arr_pairs = sorted(quantifier_arr_pairs, key=lambda x: x[1], reverse=True)
+        quantifiers, arrs = zip(*quantifier_arr_pairs)
 
-        # Return the quantifiers sorted by their ARR value
-        return sorted(quantifier_arr_pairs, key=lambda x: x[1], reverse=True)
+        # Calculate the weights of the quantifiers
+        # by their ARR values (proportional)
+        weights = np.array(arrs) / np.sum(arrs)
+
+        # Return two tuples: (quantifiers), (weights)
+        return tuple(quantifiers), tuple(weights)
 
     def save_meta_table(self, meta_table_path: str):
         if not meta_table_path.endswith(".h5"):
@@ -145,3 +162,55 @@ class KNNRecommender(BaseRecommender):
 
         self.model.fit(self.meta_features_table.values)
         self._fitted = True
+    
+    # Evaluate Quantifier Recommender with Leave-One-Out
+    def leave_one_out_evaluation(self, recommender_eval_path: str = None, quantifiers_eval_path: str = None):
+        assert self._fitted, "The model must be fitted before running the leave-one-out evaluation."
+        aux_recommender_evaluation_table = pd.DataFrame(columns=["predicted_error", "true_error"], index=self.evaluation_table.index)
+        
+        recommender_ = clone(self.model)
+        if self._scaler_method == "zscore":
+            scaler = StandardScaler()
+        elif self._scaler_method == "minmax":
+            scaler = MinMaxScaler()
+
+        for dataset in self.arr_table.index.tolist():
+            unscaled_X_test = self._unscaled_meta_features_table.loc[dataset].values
+            y_test = self.evaluation_table.loc[quantifier, dataset]['abs_error']
+
+            unscaled_X_train = self._unscaled_meta_features_table.drop(index=dataset).values
+            y_train = self.evaluation_table.loc[quantifier].drop(index=dataset)['abs_error'].values
+
+            scaler.fit(unscaled_X_train)
+            X_train = scaler.transform(unscaled_X_train)
+            recommender_.fit(X_train, y_train)
+
+            X_test = scaler.transform(np.array(unscaled_X_test).reshape(1, -1))
+            predicted_error = recommender_.predict(X_test)[0]
+
+            aux_recommender_evaluation_table.loc[(quantifier, dataset)] = [predicted_error, y_test]
+    
+        datasets = aux_recommender_evaluation_table.index.get_level_values('dataset').unique()
+        recommender_evaluation_table = pd.DataFrame(columns=["predicted_ranking", "true_ranking", "predicted_ranking_error", "true_ranking_error"], index=datasets)
+        for dataset in datasets:
+            filtered_result = aux_recommender_evaluation_table.xs(dataset, level='dataset')
+            
+            predicted_ranking = filtered_result.sort_values(by='predicted_error').index.tolist()
+            predicted_ranking_error = [filtered_result.loc[quantifier, 'predicted_error'] for quantifier in predicted_ranking]
+
+            true_ranking = filtered_result.sort_values(by='true_error').index.tolist()
+            true_ranking_error = [filtered_result.loc[quantifier, 'true_error'] for quantifier in true_ranking]
+
+            recommender_evaluation_table.loc[dataset] = [predicted_ranking, true_ranking, predicted_ranking_error, true_ranking_error]
+          
+        if not recommender_eval_path is None:
+            recommender_evaluation_table.to_csv(recommender_eval_path)
+        
+        if not quantifiers_eval_path is None:
+            self._not_agg_evaluation_table.to_csv(quantifiers_eval_path)
+        
+        not_agg_evaluation_table = self._not_agg_evaluation_table.copy(deep=True)
+        not_agg_evaluation_table.sort_values(by=['quantifier', 'dataset'], inplace=True)
+        not_agg_evaluation_table.reset_index(drop=True, inplace=True)
+        
+        return recommender_evaluation_table, not_agg_evaluation_table

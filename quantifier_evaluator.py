@@ -111,12 +111,7 @@ class QuantifierEvaluator:
         seed_index = 0
         for sample_size in batch_sizes:
             for alpha in alpha_values:
-                # pred_pos_prop_dict = {key: [] for key in self.__quantifiers}
-                # abs_error_dict = {key: [] for key in self.__quantifiers}
-                # run_time_dict = {key: [] for key in self.__quantifiers}
-
                 # Repeats the same experiment (to reduce variance)
-                # for iter in range(1): # ----------------------------> Change this to niterations
                 for iter in range(niterations):
                     pos_size = int(round(sample_size * alpha, 2))
                     neg_size = sample_size - pos_size
@@ -171,17 +166,5 @@ class QuantifierEvaluator:
                                                               pred_pos_prop,
                                                               perf_metric,
                                                               run_time)
-                
-                # for quantifier in abs_error_dict.keys():
-                #     self.__append_to_qtf_evaluation_table(quantifier,
-                #                                           dataset_name,
-                #                                           sample_size,
-                #                                           alpha,
-                #                                           pred_pos_prop,
-                #                                           np.mean(abs_error_dict[quantifier]),
-                #                                           np.min(run_time_dict[quantifier]))
-                    # abs_error_dict[quantifier].clear()
-                    # run_time_dict[quantifier].clear()
-        
         # self.__sort_qtf_evaluation_table()
         return self.qtf_evaluation_table

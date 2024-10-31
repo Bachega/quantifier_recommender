@@ -124,8 +124,11 @@ class RegressionRecommender(BaseRecommender):
             self.model_dict[quantifier].fit(X_train, y_train)
         self._fitted = True
     
-    def recommend(self, X, y = None, k: int = -1):
+    def recommend(self, X, y = None, k: int  = -1):
         assert self._fitted, "The model must be fitted before making predictions."
+        assert k > 0 or k == -1, "The number of quantifiers to recommend must be greater than 0 or -1 to recommend all quantifiers."
+        
+        k = len(self.model_dict) if k == -1 else k
 
         if self.supervised:
             _, X_test = self.mfe.extract_meta_features(X, y)
@@ -133,26 +136,23 @@ class RegressionRecommender(BaseRecommender):
             _, X_test = self.mfe.extract_meta_features(X)
         X_test = self._fitted_scaler.transform(np.array(X_test).reshape(1, -1))
 
-        if k == -1 or k > len(self.model_dict.keys()):
-            k = len(self.model_dict.keys())
-    
-        # result = pd.Series(index = list(self.model_dict.keys()))
         result = []
+        i = 0
         for quantifier, recommender in self.model_dict.items():
             result.append((quantifier, recommender.predict(X_test)[0]))
+            i += 1
+            if i == k:
+                break
             # result[quantifier] = recommender.predict(_X_test)
 
-        return sorted(result, key=lambda x: x[1], reverse=False)
-    
-        # ranking = {key: None for key in range(1, k+1)}        
-        # i = 1
-        # for index, value in result.sort_values().items():
-        #     ranking[i] = [index, value]
-        #     if i == k:
-        #         break
-        #     i += 1
-        
-        # return ranking
+        quantifier_mae_pairs = sorted(result, key=lambda x: x[1], reverse=False)
+        quantifiers, maes = zip(*quantifier_mae_pairs)
+        errors = np.array(maes)
+        denominator = np.sum(1/errors)
+        weights = (1/errors)/denominator
+
+        return tuple(quantifiers), tuple(weights)
+
 
     # Evaluate Quantifier Recommender with Leave-One-Out
     def leave_one_out_evaluation(self, recommender_eval_path: str = None, quantifiers_eval_path: str = None):
@@ -161,7 +161,10 @@ class RegressionRecommender(BaseRecommender):
         aux_recommender_evaluation_table = pd.DataFrame(columns=["predicted_error", "true_error"], index=self.evaluation_table.index)
         for quantifier, recommender in self.model_dict.items():
             recommender_ = clone(recommender)
-            scaler = MinMaxScaler()
+            if self._scaler_method == "zscore":
+                scaler = StandardScaler()
+            elif self._scaler_method == "minmax":
+                scaler = MinMaxScaler()
 
             for dataset in self.evaluation_table.index.levels[1]:
                 unscaled_X_test = self._unscaled_meta_features_table.loc[dataset].values

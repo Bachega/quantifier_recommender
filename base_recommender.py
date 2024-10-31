@@ -24,7 +24,7 @@ class BaseRecommender(ABC):
         pass
 
     @abstractmethod
-    def recommend(self, X, y):
+    def recommend(self, X, y, k):
         pass
     
     def _get_normalized_meta_features_table(self, unscaled_meta_features_table: pd.DataFrame, method: str = "minmax") -> pd.DataFrame:

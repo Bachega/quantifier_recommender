@@ -11,12 +11,16 @@ from utils.applyquantifiers import apply_quantifier
 import pdb
 
 class EnsembleQuantifier:
-    def __init__(self, ranking: list, k: int = 3, method: str ="median") -> None:
+    def __init__(self, ranking: list = None, weights: list = None, method: str ="median") -> None:
         if method not in ["median", "weighted"]:
             raise ValueError("Method must be 'median' or 'weighted'")
-    
-        self.k = k
-        self.ranking = ranking
+        
+        # self.k = k
+        if ranking is None:
+            self.__ranking = None
+        else:
+            self.ranking = ranking
+        self.weights = weights
         self.__clf = None
         self.__calib_clf = None
         self.__scores = None
@@ -25,19 +29,19 @@ class EnsembleQuantifier:
         self.__tprfpr = None
         self.method = method
 
-    @property
-    def k(self):
-        return self.__k
+    # @property
+    # def k(self):
+    #     return self.__k
     
-    @k.setter
-    def k(self, k):
-        if not isinstance(k, int):
-            raise TypeError("k must be an integer")
+    # @k.setter
+    # def k(self, k):
+    #     if not isinstance(k, int):
+    #         raise TypeError("k must be an integer")
         
-        if k == 0 or k < -1:
-            raise ValueError("k needs to be a positive number or -1 (to select all quantifiers)")
+    #     if k == 0 or k < -1:
+    #         raise ValueError("k needs to be a positive number or -1 (to select all quantifiers)")
         
-        self.__k = k
+    #     self.__k = k
     
     @property
     def ranking(self):
@@ -45,8 +49,20 @@ class EnsembleQuantifier:
 
     @ranking.setter
     def ranking(self, ranking):
-        assert isinstance(ranking, list), "ranking must be a list of tuples: (Quantifier (str), Median Absolute Error (float64))."
+        assert isinstance(ranking, list) or isinstance(ranking, tuple), "ranking must be a list/tuple of quantifiers (list of str)."
         self.__ranking = ranking
+    
+    @property
+    def weights(self):
+        return self.__weights
+    
+    @weights.setter
+    def weights(self, weights):
+        if weights is None or weights == []:
+            self.__weights = [] if self.__ranking is None else [1] * len(self.__ranking)
+        else:
+            assert isinstance(weights, list) or isinstance(weights, tuple), "weights must be a list/tuple of floats."
+            self.__weights = weights
     
     @property
     def method(self):
@@ -57,6 +73,9 @@ class EnsembleQuantifier:
         if method not in ["median", "weighted"]:
             raise ValueError("Method must be 'median' or 'weighted'")
         self.__method = method
+    
+    def __str__(self):
+        return f"EnsembleQuantifier(ranking={self.ranking}, weights={self.weights}, method={self.method})"
     
     def fit(self, X_train, y_train):
         if not isinstance(X_train, np.ndarray) or not isinstance(y_train, np.ndarray):
@@ -72,6 +91,7 @@ class EnsembleQuantifier:
         self.__clf.fit(X_train, y_train)
 
     def predict(self, X_test):
+        assert self.ranking is not None, "The ranking of quantifiers must be provided. Set the 'ranking' attribute."
         if self.__method == "median":
             return self.__median_method(X_test)
         elif self.__method == "weighted":
@@ -79,8 +99,7 @@ class EnsembleQuantifier:
 
     def __median_method(self, X_test):
         test_scores = self.__clf.predict_proba(X_test)[:,1]
-        quantifier_mae_tuple = self.__ranking[:self.k]
-        quantifiers, _ = zip(*quantifier_mae_tuple)
+        quantifiers = self.__ranking
 
         predicted_prevalence_list = []
         for quantifier in quantifiers:
@@ -100,14 +119,10 @@ class EnsembleQuantifier:
         return np.median(predicted_prevalence_list)
     
     def __weighted_method(self, X_test):
+        assert len(self.__weights) == len(self.__ranking), "The number of weights in 'weights' must be equal to the number of quantifiers in 'ranking'."
         test_scores = self.__clf.predict_proba(X_test)[:,1]
-        quantifier_mae_tuple = self.__ranking[:self.k]
-        quantifiers, maes = zip(*quantifier_mae_tuple)
-
-        
-        error_list = list(maes)
-        denominator = sum([1/err for err in error_list])
-        weight_list = [(1/err)/denominator for err in error_list]
+        quantifiers = self.__ranking
+        weight_list = self.__weights
 
         final_predicted_prevalence = 0
         i = 0
@@ -130,7 +145,7 @@ class EnsembleQuantifier:
         return final_predicted_prevalence
 
     def evaluation(self, recommender_evaluation, quantifiers_evaluation, k_evaluation_path: str = None):
-        k_quantifier_eval = pd.DataFrame(columns=["quantifier", "dataset", "sample_size", "sampling_seed",
+        ensemble_quantifier_eval = pd.DataFrame(columns=["quantifier", "dataset", "sample_size", "sampling_seed",
                                           "iteration", "alpha", "pred_prev", "abs_error", "run_time"])
         for dataset in quantifiers_evaluation["dataset"].unique().tolist():
             ranking = recommender_evaluation.loc[dataset]["predicted_ranking"]
@@ -156,7 +171,7 @@ class EnsembleQuantifier:
                             run_time_sum += row["run_time"].values[0]
                             sample_size = row["sample_size"].values[0]
                         # MEDIAN METHOD
-                        k_quantifier_row = {"quantifier": "Top-" + str(k),
+                        ensemble_quantifier_row = {"quantifier": "Top-" + str(k),
                                             "dataset": dataset,
                                             "sample_size": sample_size,
                                             "sampling_seed": sampling_seed,
@@ -165,10 +180,10 @@ class EnsembleQuantifier:
                                             "pred_prev": np.median(predicted_prev_list),
                                             "abs_error": np.abs(np.median(predicted_prev_list) - alph),
                                             "run_time": run_time_sum}
-                        k_quantifier_eval.loc[len(k_quantifier_eval)] = k_quantifier_row
+                        ensemble_quantifier_eval.loc[len(ensemble_quantifier_eval)] = ensemble_quantifier_row
 
                         # WEIGHTED METHOD
-                        k_quantifier_row = {"quantifier": "Top-" + str(k) + "+W",
+                        ensemble_quantifier_row = {"quantifier": "Top-" + str(k) + "+W",
                                             "dataset": dataset,
                                             "sample_size": sample_size,
                                             "sampling_seed": sampling_seed,
@@ -177,11 +192,11 @@ class EnsembleQuantifier:
                                             "pred_prev": np.sum(np.array(predicted_prev_list) * np.array(weight_list)),
                                             "abs_error": np.abs(np.sum(np.array(predicted_prev_list) * np.array(weight_list)) - alph),
                                             "run_time": run_time_sum}
-                        k_quantifier_eval.loc[len(k_quantifier_eval)] = k_quantifier_row
+                        ensemble_quantifier_eval.loc[len(ensemble_quantifier_eval)] = ensemble_quantifier_row
     
-        k_quantifier_eval.sort_values(by=['quantifier', 'dataset'], inplace=True)
-        k_quantifier_eval.reset_index(drop=True, inplace=True)
+        ensemble_quantifier_eval.sort_values(by=['quantifier', 'dataset'], inplace=True)
+        ensemble_quantifier_eval.reset_index(drop=True, inplace=True)
         if k_evaluation_path is not None:
-            k_quantifier_eval.to_csv(k_evaluation_path, index=False)
+            ensemble_quantifier_eval.to_csv(k_evaluation_path, index=False)
             
-        return k_quantifier_eval
+        return ensemble_quantifier_eval
