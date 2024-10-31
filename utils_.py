@@ -13,7 +13,7 @@ from utils.applyquantifiers import apply_quantifier
 from sklearn.calibration import CalibratedClassifierCV
 import time
 
-from k_quantifier import KQuantifier
+from ensemble_quantifier import EnsembleQuantifier
 
 # This function generates the train and test partitions
 # using holdout with test_size = 0.3 AND random_state = 42

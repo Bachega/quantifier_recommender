@@ -8,13 +8,13 @@ from sklearn.base import is_regressor, clone
 from base_recommender import BaseRecommender
 
 class RegressionRecommender(BaseRecommender):
-    def __init__(self, supervised: bool = True, recommender_model = RandomForestRegressor(), _load: bool = True):
-        assert is_regressor(recommender_model), "The regression model must be a scikit-learn regressor"
+    def __init__(self, supervised: bool = True, model = RandomForestRegressor(n_jobs=-1), _load: bool = True):
+        assert is_regressor(model), "The regression model must be a scikit-learn regressor"
 
         super().__init__(supervised=supervised, _load=_load)
         if _load == False:
-            self._recommender_model = recommender_model
-            self.recommender_dict = {}
+            self.model = model
+            self.model_dict = {}
             self._unscaled_meta_features_table = None
             self.meta_features_table = None
             self.evaluation_table = None
@@ -51,8 +51,8 @@ class RegressionRecommender(BaseRecommender):
         X_train = self.meta_features_table.values
         for quantifier in self.evaluation_table.index.levels[0].tolist():
             y_train = self.evaluation_table.loc[quantifier]['abs_error'].values
-            self.recommender_dict[quantifier] = clone(self._recommender_model)
-            self.recommender_dict[quantifier].fit(X_train, y_train)
+            self.model_dict[quantifier] = clone(self.model)
+            self.model_dict[quantifier].fit(X_train, y_train)
         self._fitted = True
     
     def fit(self, complete_data_path: str, train_data_path: str, test_data_path: str) -> None:
@@ -82,9 +82,10 @@ class RegressionRecommender(BaseRecommender):
                                                                                     X_train,
                                                                                     y_train,
                                                                                     X_test,
-                                                                                    y_test))
+                                                                                    y_test,
+                                                                                    func_type="cost"))
             # DELETE THIS
-            if i == 2:
+            if i == 5:
                 break
 
         # Normalize the extracted meta-features
@@ -95,61 +96,70 @@ class RegressionRecommender(BaseRecommender):
         self._not_agg_evaluation_table = pd.concat(evaluation_list, axis=0)
 
         self.evaluation_table = self._not_agg_evaluation_table.sort_values(by=['quantifier', 'dataset'])
-        self.evaluation_table = self.evaluation_table.groupby(["quantifier", "dataset", "alpha"]).agg(
-            pred_prev = pd.NamedAgg(column="pred_prev", aggfunc="mean"),
-            abs_error = pd.NamedAgg(column="abs_error", aggfunc="mean"),
-            sample_size = pd.NamedAgg(column="sample_size", aggfunc="first"),
-            sampling_seed = pd.NamedAgg(column="sampling_seed", aggfunc="first"),
-            run_time = pd.NamedAgg(column="run_time", aggfunc="mean")
-        )
-
-        self.evaluation_table = self.evaluation_table.reset_index()
-        self.evaluation_table = self.evaluation_table[['quantifier', 'dataset', 'sample_size', 'sampling_seed', 'alpha', 'pred_prev', 'abs_error', 'run_time']]
         self.evaluation_table = self.evaluation_table.groupby(["quantifier", "dataset"]).agg(
             abs_error = pd.NamedAgg(column="abs_error", aggfunc="mean"),
             run_time = pd.NamedAgg(column="run_time", aggfunc="mean")
         )
+
+        # self.evaluation_table = self.evaluation_table.groupby(["quantifier", "dataset", "alpha"]).agg(
+        #     pred_prev = pd.NamedAgg(column="pred_prev", aggfunc="mean"),
+        #     abs_error = pd.NamedAgg(column="abs_error", aggfunc="mean"),
+        #     sample_size = pd.NamedAgg(column="sample_size", aggfunc="first"),
+        #     sampling_seed = pd.NamedAgg(column="sampling_seed", aggfunc="first"),
+        #     run_time = pd.NamedAgg(column="run_time", aggfunc="mean")
+        # )
+
+        # self.evaluation_table = self.evaluation_table.reset_index()
+        # self.evaluation_table = self.evaluation_table[['quantifier', 'dataset', 'sample_size', 'sampling_seed', 'alpha', 'pred_prev', 'abs_error', 'run_time']]
+        # self.evaluation_table = self.evaluation_table.groupby(["quantifier", "dataset"]).agg(
+        #     abs_error = pd.NamedAgg(column="abs_error", aggfunc="mean"),
+        #     run_time = pd.NamedAgg(column="run_time", aggfunc="mean")
+        # )
         
         X_train = self.meta_features_table.values
         y_train = None
         for quantifier in self.evaluation_table.index.levels[0].tolist():
             y_train = self.evaluation_table.loc[quantifier]['abs_error'].values
-            self.recommender_dict[quantifier] = clone(self._recommender_model)
-            self.recommender_dict[quantifier].fit(X_train, y_train)
+            self.model_dict[quantifier] = clone(self.model)
+            self.model_dict[quantifier].fit(X_train, y_train)
         self._fitted = True
     
-    def recommend(self, X_test, y_test = None, k: int = -1) -> dict:
+    def recommend(self, X, y = None, k: int = -1):
         assert self._fitted, "The model must be fitted before making predictions."
 
         if self.supervised:
-            _, _X_test = self.mfe.extract_meta_features(X_test, y_test)
+            _, X_test = self.mfe.extract_meta_features(X, y)
         else:
-            _, _X_test = self.mfe.extract_meta_features(X_test)
-        _X_test = self._fitted_scaler.transform(np.array(_X_test).reshape(1, -1))
+            _, X_test = self.mfe.extract_meta_features(X)
+        X_test = self._fitted_scaler.transform(np.array(X_test).reshape(1, -1))
 
-        if k == -1 or k > len(self.recommender_dict.keys()):
-            k = len(self.recommender_dict.keys())
+        if k == -1 or k > len(self.model_dict.keys()):
+            k = len(self.model_dict.keys())
     
-        result = pd.Series(index = list(self.recommender_dict.keys()))
-        for quantifier, recommender in self.recommender_dict.items():
-            result[quantifier] = recommender.predict(_X_test)
+        # result = pd.Series(index = list(self.model_dict.keys()))
+        result = []
+        for quantifier, recommender in self.model_dict.items():
+            result.append((quantifier, recommender.predict(X_test)[0]))
+            # result[quantifier] = recommender.predict(_X_test)
 
-        ranking = {key: None for key in range(1, k+1)}        
-        i = 1
-        for index, value in result.sort_values().items():
-            ranking[i] = [index, value]
-            if i == k:
-                break
-            i += 1
+        return sorted(result, key=lambda x: x[1], reverse=False)
+    
+        # ranking = {key: None for key in range(1, k+1)}        
+        # i = 1
+        # for index, value in result.sort_values().items():
+        #     ranking[i] = [index, value]
+        #     if i == k:
+        #         break
+        #     i += 1
         
-        return ranking
+        # return ranking
 
     # Evaluate Quantifier Recommender with Leave-One-Out
     def leave_one_out_evaluation(self, recommender_eval_path: str = None, quantifiers_eval_path: str = None):
         assert self._fitted, "The model must be fitted before running the leave-one-out evaluation."
 
         aux_recommender_evaluation_table = pd.DataFrame(columns=["predicted_error", "true_error"], index=self.evaluation_table.index)
-        for quantifier, recommender in self.recommender_dict.items():
+        for quantifier, recommender in self.model_dict.items():
             recommender_ = clone(recommender)
             scaler = MinMaxScaler()
 

@@ -8,7 +8,7 @@ from meta_feature_extractor import MetaFeatureExtractor
 from quantifier_evaluator import QuantifierEvaluator
 
 class BaseRecommender(ABC):
-    def __init__(self, supervised = True,  _load: bool = True):
+    def __init__(self, supervised = True, _load: bool = True):
         if _load:
             self.__dict__.update(BaseRecommender.load_model(f"./recommender_data/{self.__class__.__name__}.joblib").__dict__)
         else:
@@ -24,7 +24,7 @@ class BaseRecommender(ABC):
         pass
 
     @abstractmethod
-    def recommend(self, X):
+    def recommend(self, X, y):
         pass
     
     def _get_normalized_meta_features_table(self, unscaled_meta_features_table: pd.DataFrame, method: str = "minmax") -> pd.DataFrame:

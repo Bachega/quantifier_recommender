@@ -7,7 +7,7 @@ import timeit
 
 from regression_recommender import QuantifierRecommender
 from quantifier_evaluator import QuantifierEvaluator
-from k_quantifier import KQuantifier
+from ensemble_quantifier import KQuantifier
 
 from utils_ import generate_train_test_data
 

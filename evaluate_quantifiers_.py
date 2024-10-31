@@ -6,7 +6,7 @@ from utils.getTrainingScores import getTrainingScores
 from utils.getTPRFPR import getTPRFPR
 from utils.applyquantifiers import apply_quantifier
 from sklearn.calibration import CalibratedClassifierCV
-from k_quantifier import KQuantifier
+from ensemble_quantifier import KQuantifier
 import time
 
 def evaluate_quantifiers(dataset_name,  X_train, y_train, X_test, y_test, quantifiers = None):

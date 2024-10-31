@@ -4,15 +4,15 @@ import os
 import pandas as pd
 import numpy as np
 from sklearn.preprocessing import MinMaxScaler, StandardScaler
-from sklearn.neighbors import KNeighborsClassifier
+from sklearn.neighbors import NearestNeighbors
 
 import pdb
 
 class KNNRecommender(BaseRecommender):
-    def __init__(self, supervised: bool = True, recommender_model = KNeighborsClassifier, _load: bool = True):
+    def __init__(self, supervised: bool = True, n_neighbors: int = 1, _load: bool = True):
         super().__init__(supervised, _load)
         if _load == False:
-            self._recommender_model = recommender_model
+            self.model = NearestNeighbors(n_neighbors=n_neighbors, metric='manhattan', n_jobs=-1)
             self._unscaled_meta_features_table = None
             self.meta_features_table = None
             self.arr_table = None
@@ -82,10 +82,35 @@ class KNNRecommender(BaseRecommender):
                 arr_i = np.sum(acc_i_div_j / run_time_i_div_j) / m
 
                 arr_row.append(arr_i)
-            self.arr_table.loc[dt] = arr_row        
+            self.arr_table.loc[dt] = arr_row
 
-    def recommend(self, X):
-        pass
+        self.model.fit(self.meta_features_table.values)
+        self._fitted = True  
+
+    def recommend(self, X, y = None):
+        assert self._fitted, "The model must be fitted before making predictions."
+
+        if self.supervised:
+            _, X_test = self.mfe.extract_meta_features(X, y)
+        else:
+            _, X_test = self.mfe.extract_meta_features(X)
+        X_test = self._fitted_scaler.transform(np.array(X_test).reshape(1, -1))
+
+        distances, indices = self.model.kneighbors(X_test.reshape(1, -1))
+        distances, indices = distances[0], indices[0]
+
+        quantifiers = self.arr_table.columns
+        new_arr_array = np.array(len(quantifiers) * [np.float64(0)])
+        weights = np.array(1/distances) / np.sum(1/distances)
+        for idx, w in zip(indices, weights):
+            arr_idx = self.meta_features_table.iloc[idx].name
+            new_arr_array += np.array(self.arr_table.loc[arr_idx].values) * w
+
+        # List of tuples: (quantifier, ARR value)
+        quantifier_arr_pairs = list(zip(quantifiers, new_arr_array))
+
+        # Return the quantifiers sorted by their ARR value
+        return sorted(quantifier_arr_pairs, key=lambda x: x[1], reverse=True)
 
     def save_meta_table(self, meta_table_path: str):
         if not meta_table_path.endswith(".h5"):
@@ -118,9 +143,5 @@ class KNNRecommender(BaseRecommender):
             self._fitted_scaler = MinMaxScaler()
         self._fitted_scaler.fit(data)
 
-        X_train = self.meta_features_table.values
-        # for quantifier in self.evaluation_table.index.levels[0].tolist():
-        #     y_train = self.evaluation_table.loc[quantifier]['abs_error'].values
-        #     self.recommender_dict[quantifier] = clone(self._recommender_model)
-        #     self.recommender_dict[quantifier].fit(X_train, y_train)
+        self.model.fit(self.meta_features_table.values)
         self._fitted = True
