@@ -166,8 +166,15 @@ class KNNRecommender(BaseRecommender):
     # Evaluate Quantifier Recommender with Leave-One-Out
     def leave_one_out_evaluation(self, recommender_eval_path: str = None, quantifiers_eval_path: str = None):
         assert self._fitted, "The model must be fitted before running the leave-one-out evaluation."
-        aux_recommender_evaluation_table = pd.DataFrame(columns=["predicted_error", "true_error"], index=self.evaluation_table.index)
-        
+        predicted_arr_table = pd.DataFrame(columns=self.arr_table.columns, index=self.arr_table.index.tolist())
+        true_arr_table = pd.DataFrame(columns=self.arr_table.columns, index=self.arr_table.index.tolist())
+        recommender_evaluation_table = pd.DataFrame(columns=["predicted_ranking",
+                                                             "predicted_ranking_weights",
+                                                             "predicted_ranking_arr",
+                                                             "true_ranking",
+                                                             "true_ranking_weights",
+                                                             "true_ranking_arr"], index=self.arr_table.index.tolist())
+
         recommender_ = clone(self.model)
         if self._scaler_method == "zscore":
             scaler = StandardScaler()
@@ -176,33 +183,35 @@ class KNNRecommender(BaseRecommender):
 
         for dataset in self.arr_table.index.tolist():
             unscaled_X_test = self._unscaled_meta_features_table.loc[dataset].values
-            y_test = self.evaluation_table.loc[quantifier, dataset]['abs_error']
+            y_test = self.arr_table.loc[dataset].values
 
             unscaled_X_train = self._unscaled_meta_features_table.drop(index=dataset).values
-            y_train = self.evaluation_table.loc[quantifier].drop(index=dataset)['abs_error'].values
+            y_train = (self.arr_table.drop(index=dataset)).values
 
-            scaler.fit(unscaled_X_train)
-            X_train = scaler.transform(unscaled_X_train)
+            X_train = scaler.fit_transform(unscaled_X_train)
             recommender_.fit(X_train, y_train)
 
             X_test = scaler.transform(np.array(unscaled_X_test).reshape(1, -1))
-            predicted_error = recommender_.predict(X_test)[0]
+            distances, indices = recommender_.kneighbors(X_test.reshape(1, -1))
+            distances, indices = distances[0], indices[0]
+            quantifiers = self.arr_table.columns
+            new_arr_array = np.array(len(quantifiers) * [np.float64(0)])
+            weights = np.array(1/distances) / np.sum(1/distances)
+            for idx, w in zip(indices, weights):
+                arr_idx = self.meta_features_table.iloc[idx].name
+                new_arr_array += np.array(self.arr_table.loc[arr_idx].values) * w
 
-            aux_recommender_evaluation_table.loc[(quantifier, dataset)] = [predicted_error, y_test]
-    
-        datasets = aux_recommender_evaluation_table.index.get_level_values('dataset').unique()
-        recommender_evaluation_table = pd.DataFrame(columns=["predicted_ranking", "true_ranking", "predicted_ranking_error", "true_ranking_error"], index=datasets)
-        for dataset in datasets:
-            filtered_result = aux_recommender_evaluation_table.xs(dataset, level='dataset')
+            quantifier_arr_pairs = sorted(list(zip(quantifiers, new_arr_array)), key=lambda x: x[1], reverse=True)
+            predicted_ranking, predicted_arr = zip(*quantifier_arr_pairs)
+            predicted_ranking_weights = np.array(predicted_arr) / np.sum(predicted_arr)
+
+            quantifier_arr_pairs = sorted(list(zip(quantifiers, y_test)), key=lambda x: x[1], reverse=True)
+            true_ranking, true_arr = zip(*quantifier_arr_pairs)
+            true_ranking_weights = np.array(true_arr) / np.sum(true_arr)
+
+            recommender_evaluation_table.loc[dataset] = [predicted_ranking, predicted_ranking_weights, predicted_arr,
+                                                         true_ranking, true_ranking_weights, true_arr]
             
-            predicted_ranking = filtered_result.sort_values(by='predicted_error').index.tolist()
-            predicted_ranking_error = [filtered_result.loc[quantifier, 'predicted_error'] for quantifier in predicted_ranking]
-
-            true_ranking = filtered_result.sort_values(by='true_error').index.tolist()
-            true_ranking_error = [filtered_result.loc[quantifier, 'true_error'] for quantifier in true_ranking]
-
-            recommender_evaluation_table.loc[dataset] = [predicted_ranking, true_ranking, predicted_ranking_error, true_ranking_error]
-          
         if not recommender_eval_path is None:
             recommender_evaluation_table.to_csv(recommender_eval_path)
         

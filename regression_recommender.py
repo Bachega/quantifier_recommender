@@ -183,17 +183,27 @@ class RegressionRecommender(BaseRecommender):
                 aux_recommender_evaluation_table.loc[(quantifier, dataset)] = [predicted_error, y_test]
         
         datasets = aux_recommender_evaluation_table.index.get_level_values('dataset').unique()
-        recommender_evaluation_table = pd.DataFrame(columns=["predicted_ranking", "true_ranking", "predicted_ranking_error", "true_ranking_error"], index=datasets)
+        recommender_evaluation_table = pd.DataFrame(columns=["predicted_ranking", "predicted_ranking_weights", "predicted_ranking_mae",
+                                                             "true_ranking", "true_ranking_weights", "true_ranking_mae"], index=datasets)
         for dataset in datasets:
             filtered_result = aux_recommender_evaluation_table.xs(dataset, level='dataset')
             
             predicted_ranking = filtered_result.sort_values(by='predicted_error').index.tolist()
-            predicted_ranking_error = [filtered_result.loc[quantifier, 'predicted_error'] for quantifier in predicted_ranking]
+            predicted_ranking_mae = [filtered_result.loc[quantifier, 'predicted_error'] for quantifier in predicted_ranking]
+
+            errors = np.array(predicted_ranking_mae)
+            denominator = np.sum(1/errors)
+            predicted_ranking_weights = (1/errors)/denominator
 
             true_ranking = filtered_result.sort_values(by='true_error').index.tolist()
-            true_ranking_error = [filtered_result.loc[quantifier, 'true_error'] for quantifier in true_ranking]
+            true_ranking_mae = [filtered_result.loc[quantifier, 'true_error'] for quantifier in true_ranking]
 
-            recommender_evaluation_table.loc[dataset] = [predicted_ranking, true_ranking, predicted_ranking_error, true_ranking_error]
+            errors = np.array(true_ranking_mae)
+            denominator = np.sum(1/errors)
+            true_ranking_weights = (1/errors)/denominator
+
+            recommender_evaluation_table.loc[dataset] = [predicted_ranking, predicted_ranking_weights, predicted_ranking_mae,
+                                                         true_ranking, true_ranking_weights, true_ranking_mae]
           
         if not recommender_eval_path is None:
             recommender_evaluation_table.to_csv(recommender_eval_path)

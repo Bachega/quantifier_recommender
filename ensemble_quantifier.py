@@ -144,7 +144,9 @@ class EnsembleQuantifier:
             i += 1
         return final_predicted_prevalence
 
-    def evaluation(self, recommender_evaluation, quantifiers_evaluation, k_evaluation_path: str = None):
+    def evaluation(self, recommender_type, recommender_evaluation, quantifiers_evaluation, k_evaluation_path: str = None):
+        assert recommender_type == "regression" or recommender_type == "knn", "recommender_type must be 'regression' or 'knn'."
+
         ensemble_quantifier_eval = pd.DataFrame(columns=["quantifier", "dataset", "sample_size", "sampling_seed",
                                           "iteration", "alpha", "pred_prev", "abs_error", "run_time"])
         for dataset in quantifiers_evaluation["dataset"].unique().tolist():
@@ -161,9 +163,15 @@ class EnsembleQuantifier:
                         sample_size = 0
                         sampling_seed = 0
 
-                        error_list = recommender_evaluation.loc[dataset]['predicted_ranking_error'][:k]
-                        denominator = sum([1/err for err in error_list])
-                        weight_list = [(1/err)/denominator for err in error_list]
+                        if recommender_type == "regression":
+                            error_list = recommender_evaluation.loc[dataset]['predicted_ranking_mae'][:k]
+                            denominator = sum([1/err for err in error_list])
+                            weight_list = [(1/err)/denominator for err in error_list]
+                            recommender_type_ = "REG"
+                        elif recommender_type == "knn":
+                            arr_list = recommender_evaluation.loc[dataset]['predicted_ranking_arr'][:k]
+                            weight_list = [arr/sum(arr_list) for arr in arr_list]
+                            recommender_type_ = "KNN"
                         for i in range(0, k):
                             row = rows_by_dataset[(rows_by_dataset["alpha"] == alph) & (rows_by_dataset["quantifier"] == ranking[i]) & (rows_by_dataset["iteration"] == iter)]
                             sampling_seed = row["sampling_seed"].values[0]
@@ -171,7 +179,7 @@ class EnsembleQuantifier:
                             run_time_sum += row["run_time"].values[0]
                             sample_size = row["sample_size"].values[0]
                         # MEDIAN METHOD
-                        ensemble_quantifier_row = {"quantifier": "Top-" + str(k),
+                        ensemble_quantifier_row = {"quantifier": "("+recommender_type_+")Top-" + str(k),
                                             "dataset": dataset,
                                             "sample_size": sample_size,
                                             "sampling_seed": sampling_seed,
@@ -183,7 +191,7 @@ class EnsembleQuantifier:
                         ensemble_quantifier_eval.loc[len(ensemble_quantifier_eval)] = ensemble_quantifier_row
 
                         # WEIGHTED METHOD
-                        ensemble_quantifier_row = {"quantifier": "Top-" + str(k) + "+W",
+                        ensemble_quantifier_row = {"quantifier": "("+recommender_type_+")Top-" + str(k) + "+W",
                                             "dataset": dataset,
                                             "sample_size": sample_size,
                                             "sampling_seed": sampling_seed,
