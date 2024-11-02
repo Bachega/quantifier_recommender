@@ -54,12 +54,12 @@ class BaseRecommender(ABC):
         unscaled_meta_features_table.loc[dataset_name] = features
         return unscaled_meta_features_table
 
-    def _load_train_test_data(self, dataset_name: str, train_data_path: str, test_data_path: str):
-        train_df = pd.read_csv(f"{train_data_path}/{dataset_name}.csv")
+    def _load_train_test_set(self, dataset_name: str, train_set_path: str, test_set_path: str):
+        train_df = pd.read_csv(f"{train_set_path}/{dataset_name}.csv")
         y_train = train_df.pop(train_df.columns[-1])
         X_train = train_df
 
-        test_df = pd.read_csv(f"{test_data_path}/{dataset_name}.csv")
+        test_df = pd.read_csv(f"{test_set_path}/{dataset_name}.csv")
         y_test = test_df.pop(test_df.columns[-1])
         X_test = test_df
 

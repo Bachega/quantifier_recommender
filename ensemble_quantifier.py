@@ -3,6 +3,7 @@ import numpy as np
 
 from sklearn.linear_model import LogisticRegression
 from sklearn.calibration import CalibratedClassifierCV
+from sklearn.preprocessing import StandardScaler
 
 from utils.getTrainingScores import getTrainingScores
 from utils.getTPRFPR import getTPRFPR
@@ -81,6 +82,11 @@ class EnsembleQuantifier:
         if not isinstance(X_train, np.ndarray) or not isinstance(y_train, np.ndarray):
             raise TypeError("X_train and y_train must be numpy arrays")
         
+        ###### VERIFICAR ######
+        self.__scaler = StandardScaler()
+        X_train = self.__scaler.fit_transform(X_train)
+        ###### VERIFICAR ######
+
         self.__clf = LogisticRegression(random_state=42, n_jobs=-1)
         self.__calib_clf = CalibratedClassifierCV(self.__clf, cv=3, n_jobs=-1)
         self.__calib_clf.fit(X_train, y_train)
@@ -92,6 +98,11 @@ class EnsembleQuantifier:
 
     def predict(self, X_test):
         assert self.ranking is not None, "The ranking of quantifiers must be provided. Set the 'ranking' attribute."
+
+        ###### VERIFICAR ######
+        X_test = self.__scaler.transform(X_test)
+        ###### VERIFICAR ######
+        
         if self.__method == "median":
             return self.__median_method(X_test)
         elif self.__method == "weighted":

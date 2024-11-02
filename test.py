@@ -48,37 +48,11 @@ def extract_meta_features(mfe, X, y=None):
 
     return columns, features
 
-def test_clf():
-    logger = logging.getLogger(__name__)
-    logging.basicConfig(filename='clf_test.log', encoding='utf-8', level=logging.DEBUG)
-
-    complete_data_path = "./data/complete_data/"
-    dataset_list = [csv for csv in os.listdir(complete_data_path) if csv.endswith(".csv")]
-    
-    mfe = MFE(random_state=42)
-    li = []
-    for i, dataset in enumerate(dataset_list):
-        dataset_name = dataset.split(".csv")[0]
-                
-        X_train, y_train, X_test, y_test = load_train_test_data(dataset_name, "./data/train_data/", "./data/test_data/")
-
-        clf = None
-        clf = LogisticRegression(random_state=42, n_jobs=-1)
-        
-        calib_clf = CalibratedClassifierCV(clf, cv=3, n_jobs=-1)
-        calib_clf.fit(X_train, y_train)
-
-        scores = getTrainingScores(X_train, y_train, 10, clf)[0]
-        tprfpr = getTPRFPR(scores)
-        clf.fit(X_train, y_train)
-
-        logger.info(f"Finished: {dataset}")
-
 def test_mfe():
     logger = logging.getLogger(__name__)
     logging.basicConfig(filename='mfe_test.log', encoding='utf-8', level=logging.DEBUG)
 
-    complete_data_path = "./data/complete_data/"
+    complete_data_path = "./data/full_set/"
     dataset_list = [csv for csv in os.listdir(complete_data_path) if csv.endswith(".csv")]
     
     mfe = MFE(random_state=42)
@@ -98,7 +72,33 @@ def test_mfe():
         
         columns, features = extract_meta_features(mfe, X, y)
 
-        logger.info(f"Finished: {dataset}\tlen columns{len(columns)} | len features {features}")
+        logger.info(f"Finished: {dataset}\tlen columns {len(columns)} | len features {len(features)}")
+
+def test_clf():
+    logger = logging.getLogger(__name__)
+    logging.basicConfig(filename='clf_test.log', encoding='utf-8', level=logging.DEBUG)
+
+    complete_data_path = "./data/full_set/"
+    dataset_list = [csv for csv in os.listdir(complete_data_path) if csv.endswith(".csv")]
+    
+    mfe = MFE(random_state=42)
+    li = []
+    for i, dataset in enumerate(dataset_list):
+        dataset_name = dataset.split(".csv")[0]
+                
+        X_train, y_train, X_test, y_test = load_train_test_data(dataset_name, "./data/train_set/", "./data/test_set/")
+
+        clf = None
+        clf = LogisticRegression(random_state=42, n_jobs=-1, max_iter=1000)
+        
+        calib_clf = CalibratedClassifierCV(clf, cv=3, n_jobs=-1)
+        calib_clf.fit(X_train, y_train)
+
+        scores = getTrainingScores(X_train, y_train, 10, clf)[0]
+        tprfpr = getTPRFPR(scores)
+        clf.fit(X_train, y_train)
+           
+        logger.info(f"Finished: {dataset}")
 
 if __name__ == "__main__":
-    test_mfe()
+    test_clf()

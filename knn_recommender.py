@@ -28,14 +28,14 @@ class KNNRecommender(BaseRecommender):
         assert n_neighbors > 0 or n_neighbors == -1, "The number of neighbors must be greater than 0 or -1 (all neighbors)."
         self._n_neighbors = n_neighbors
             
-    def fit(self, complete_data_path: str, train_data_path: str, test_data_path: str) -> None:
-        dataset_list = [csv for csv in os.listdir(complete_data_path) if csv.endswith(".csv")]
+    def fit(self, full_set_path: str, train_set_path: str, test_set_path: str) -> None:
+        dataset_list = [csv for csv in os.listdir(full_set_path) if csv.endswith(".csv")]
         evaluation_list = []
         for i, dataset in enumerate(dataset_list):
             dataset_name = dataset.split(".csv")[0]
             
             # Meta-Features extraction
-            dt = pd.read_csv(complete_data_path + dataset)
+            dt = pd.read_csv(full_set_path + dataset)
             dt = dt.dropna()
             
             if self.supervised:
@@ -47,7 +47,7 @@ class KNNRecommender(BaseRecommender):
             self._unscaled_meta_features_table = self._extract_and_append(dataset_name, X, y, self._unscaled_meta_features_table)
 
             # Quantifiers evaluation
-            X_train, y_train, X_test, y_test = self._load_train_test_data(dataset_name, train_data_path, test_data_path)
+            X_train, y_train, X_test, y_test = self._load_train_test_set(dataset_name, train_set_path, test_set_path)
             evaluation_list.append(self.quantifier_evaluator.evaluate_quantifiers(dataset_name=dataset_name,
                                                                                   X_train=X_train,
                                                                                   y_train=y_train,

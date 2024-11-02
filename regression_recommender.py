@@ -55,8 +55,8 @@ class RegressionRecommender(BaseRecommender):
             self.model_dict[quantifier].fit(X_train, y_train)
         self._fitted = True
     
-    def fit(self, complete_data_path: str, train_data_path: str, test_data_path: str) -> None:
-        dataset_list = [csv for csv in os.listdir(complete_data_path) if csv.endswith(".csv")]
+    def fit(self, full_set_path: str, train_set_path: str, test_set_path: str) -> None:
+        dataset_list = [csv for csv in os.listdir(full_set_path) if csv.endswith(".csv")]
 
         # Appending the evaluations to a list and then concatenating them
         # to a pandas dataframe is O(n)
@@ -65,7 +65,7 @@ class RegressionRecommender(BaseRecommender):
             dataset_name = dataset.split(".csv")[0]
             
             # Meta-Features extraction
-            dt = pd.read_csv(complete_data_path + dataset)
+            dt = pd.read_csv(full_set_path + dataset)
             dt = dt.dropna()
             
             if self.supervised:
@@ -77,7 +77,7 @@ class RegressionRecommender(BaseRecommender):
             self._unscaled_meta_features_table = self._extract_and_append(dataset_name, X, y, self._unscaled_meta_features_table)
 
             # Quantifiers evaluation
-            X_train, y_train, X_test, y_test = self._load_train_test_data(dataset_name, train_data_path, test_data_path)
+            X_train, y_train, X_test, y_test = self._load_train_test_set(dataset_name, train_set_path, test_set_path)
             evaluation_list.append(self.quantifier_evaluator.evaluate_quantifiers(dataset_name,
                                                                                     X_train,
                                                                                     y_train,
