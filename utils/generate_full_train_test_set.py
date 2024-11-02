@@ -34,11 +34,13 @@ def generate_full_train_test_set(source_path: str, full_dest_path: str, train_de
         dataset = pd.read_csv(f"{source_path}/{dataset_name}")
         
         columns = dataset.columns
-        y = dataset.pop(dataset.columns[-1])
+        y = dataset[columns[-1]].values
+        X = dataset.drop(columns[-1], axis=1).values
+        # y = dataset.pop(dataset.columns[-1])
         if scaler:
-            X = scaler.fit_transform(dataset)
-        else:
-            X = dataset.values
+            X = scaler.fit_transform(X)
+        # else:
+        #     X = dataset.values
         X = np.c_[X, y]
         dataset_transformed = pd.DataFrame(data=X, columns=columns)
 

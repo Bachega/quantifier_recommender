@@ -176,6 +176,8 @@ class EnsembleQuantifier:
 
                         if recommender_type == "regression":
                             error_list = recommender_evaluation.loc[dataset]['predicted_ranking_mae'][:k]
+                            if np.any(error_list == 0):
+                                error_list = np.array([1e-6 if x == 0 else x for x in error_list])
                             denominator = sum([1/err for err in error_list])
                             weight_list = [(1/err)/denominator for err in error_list]
                             recommender_type_ = "REG"

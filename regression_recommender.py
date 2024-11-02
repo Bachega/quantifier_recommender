@@ -148,6 +148,8 @@ class RegressionRecommender(BaseRecommender):
         quantifier_mae_pairs = sorted(result, key=lambda x: x[1], reverse=False)
         quantifiers, maes = zip(*quantifier_mae_pairs)
         errors = np.array(maes)
+        if np.any(errors == 0):
+            errors = np.array([1e-6 if x == 0 else x for x in errors])
         denominator = np.sum(1/errors)
         weights = (1/errors)/denominator
 
@@ -199,6 +201,8 @@ class RegressionRecommender(BaseRecommender):
             true_ranking_mae = [filtered_result.loc[quantifier, 'true_error'] for quantifier in true_ranking]
 
             errors = np.array(true_ranking_mae)
+            if np.any(errors == 0):
+                errors = np.array([1e-6 if x == 0 else x for x in errors])
             denominator = np.sum(1/errors)
             true_ranking_weights = (1/errors)/denominator
 
