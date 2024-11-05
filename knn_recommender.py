@@ -112,7 +112,8 @@ class KNNRecommender(BaseRecommender):
 
         quantifiers = self.arr_table.columns
         new_arr_array = np.array(len(quantifiers) * [np.float64(0)])
-        weights = np.array(1/distances) / np.sum(1/distances)
+        tolerance = 1e-10
+        weights = np.array(1/(distances + tolerance)) / np.sum(1/(distances + tolerance))
         for idx, w in zip(indices, weights):
             arr_idx = self.meta_features_table.iloc[idx].name
             new_arr_array += np.array(self.arr_table.loc[arr_idx].values) * w
@@ -196,7 +197,8 @@ class KNNRecommender(BaseRecommender):
             distances, indices = distances[0], indices[0]
             quantifiers = self.arr_table.columns
             new_arr_array = np.array(len(quantifiers) * [np.float64(0)])
-            weights = np.array(1/distances) / np.sum(1/distances)
+            tolerance = 1e-10
+            weights = np.array(1/(distances + tolerance)) / np.sum(1/(distances + tolerance))
             for idx, w in zip(indices, weights):
                 arr_idx = self.meta_features_table.iloc[idx].name
                 new_arr_array += np.array(self.arr_table.loc[arr_idx].values) * w
