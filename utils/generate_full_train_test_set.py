@@ -47,5 +47,6 @@ def generate_full_train_test_set(source_path: str, full_dest_path: str, train_de
         train, test = train_test_split(dataset_transformed, test_size=test_size, random_state=random_state)
 
         dataset.to_csv(f"{full_dest_path}/{dataset_name}", index=False)
+        # # # dataset_transformed.to_csv(f"{full_dest_path}/{dataset_name}", index=False)
         train.to_csv(f"{train_dest_path}/{dataset_name}", index=False)
         test.to_csv(f"{test_dest_path}/{dataset_name}", index=False)

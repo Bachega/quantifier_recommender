@@ -143,7 +143,7 @@ class QuantifierEvaluator:
                                                         test_score=te_scores,
                                                         TprFpr=tprfpr,
                                                         thr=0.5,
-                                                        measure='hellinger',
+                                                        measure='topsoe',
                                                         test_data=test_sample,
                                                         test_quapy=None,
                                                         external_qnt=None)
@@ -152,9 +152,9 @@ class QuantifierEvaluator:
                         # pred_pos_prop = np.round(pred_pos_prop, 2)  #predicted class proportion
                         #..............................RESULTS Evaluation.....................................
                         if func_type == "cost":
-                            perf_metric = round(abs(calcultd_pos_prop - pred_pos_prop), 6)
+                            perf_metric = round(abs(calcultd_pos_prop - pred_pos_prop), 2)
                         elif func_type == "utility":
-                            perf_metric = round((1 / (1 + abs(calcultd_pos_prop - pred_pos_prop))), 6)
+                            perf_metric = round((1 / (1 + abs(calcultd_pos_prop - pred_pos_prop))), 2)
                         # abs_error = round(abs(calcultd_pos_prop - pred_pos_prop), 2) # absolute error
 
                         self.__append_to_qtf_evaluation_table(quantifier,
