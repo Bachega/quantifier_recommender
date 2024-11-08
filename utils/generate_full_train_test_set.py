@@ -10,7 +10,7 @@ from sklearn.model_selection import train_test_split
 # Also: data can be normalized (or not) using minmax or zscore
 def generate_full_train_test_set(source_path: str, full_dest_path: str, train_dest_path: str,
                                  test_dest_path: str, scaling_method: str = None,
-                                 test_size=0.3, random_state=42):
+                                 test_size=0.5, random_state=42):
     assert scaling_method is None or scaling_method in ["minmax", "zscore"], "scaling_method must be None, 'minmax' or 'zscore'"
     
     scaler = None
