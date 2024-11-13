@@ -11,7 +11,6 @@ class MetaFeatureExtractor:
             data = np.array(data)
         elif isinstance(data, pd.Series) or isinstance(data, pd.DataFrame):
             data = data.to_numpy()
-
         return data
 
     def extract_meta_features(self, X, y=None):

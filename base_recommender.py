@@ -14,9 +14,7 @@ class BaseRecommender(ABC):
         else:
             self.mfe = MetaFeatureExtractor()
             self.quantifier_evaluator = QuantifierEvaluator()
-            self.supervised = supervised   
-            self._fitted = False
-            self._fitted_scaler = None
+            self.supervised = supervised
             self._scaler_method = None
 
     @abstractmethod
@@ -27,32 +25,14 @@ class BaseRecommender(ABC):
     def recommend(self, X, y, k):
         pass
     
-    def _get_normalized_meta_features_table(self, unscaled_meta_features_table: pd.DataFrame, method: str = "minmax") -> pd.DataFrame:
-        assert isinstance(unscaled_meta_features_table, pd.DataFrame), "Invalid input. Input must be a pandas DataFrame."
-        assert method in ["minmax", "zscore"], "Invalid normalization method. Choose between 'minmax' and 'zscore'."
-        
-        columns = unscaled_meta_features_table.columns
-        data = unscaled_meta_features_table.values
-
-        if method == "minmax":
-            self._fitted_scaler = MinMaxScaler()
-        elif method == "zscore":
-            self._fitted_scaler = StandardScaler()
-        self._scaler_method = method
-        self._fitted_scaler.fit(data)
-
-        scaled_meta_features_table = pd.DataFrame(self._fitted_scaler.transform(data), columns=columns)
-        scaled_meta_features_table.index = unscaled_meta_features_table.index
-        return scaled_meta_features_table
-
-    def _extract_and_append(self, dataset_name: str, X, y = None, unscaled_meta_features_table = None) -> None:
+    def _extract_and_append(self, dataset_name: str, X, y = None, meta_features_table = None) -> None:
         columns, features = self.mfe.extract_meta_features(X, y)
 
-        if unscaled_meta_features_table is None:
-            unscaled_meta_features_table = pd.DataFrame(columns=columns)
+        if meta_features_table is None:
+            meta_features_table = pd.DataFrame(columns=columns)
 
-        unscaled_meta_features_table.loc[dataset_name] = features
-        return unscaled_meta_features_table
+        meta_features_table.loc[dataset_name] = features
+        return meta_features_table
 
     def _load_train_test_set(self, dataset_name: str, train_set_path: str, test_set_path: str):
         train_df = pd.read_csv(f"{train_set_path}/{dataset_name}.csv")

@@ -6,15 +6,18 @@ import numpy as np
 from sklearn.base import clone
 from sklearn.preprocessing import MinMaxScaler, StandardScaler
 from sklearn.neighbors import NearestNeighbors
-
-import pdb
+from sklearn.pipeline import Pipeline
+from sklearn.feature_selection import VarianceThreshold
 
 class KNNRecommender(BaseRecommender):
     def __init__(self, supervised: bool = True, n_neighbors: int = 1, _load: bool = True):
         super().__init__(supervised, _load)
         if _load == False:
-            self.model = NearestNeighbors(n_neighbors=n_neighbors, metric='manhattan', n_jobs=-1)
-            self._unscaled_meta_features_table = None
+            self.model = Pipeline([
+                ("normalization", MinMaxScaler()),
+                ("variance_threshold", VarianceThreshold()),
+                ("model", NearestNeighbors(n_neighbors=n_neighbors, metric='manhattan', n_jobs=-1))
+            ])
             self.meta_features_table = None
             self.arr_table = None
             self.n_neighbors = n_neighbors
@@ -31,7 +34,7 @@ class KNNRecommender(BaseRecommender):
     def fit(self, full_set_path: str, train_set_path: str, test_set_path: str) -> None:
         dataset_list = [csv for csv in os.listdir(full_set_path) if csv.endswith(".csv")]
         evaluation_list = []
-        for i, dataset in enumerate(dataset_list):
+        for _, dataset in enumerate(dataset_list):
             dataset_name = dataset.split(".csv")[0]
             
             # Meta-Features extraction
@@ -44,7 +47,7 @@ class KNNRecommender(BaseRecommender):
                 y = None
             X = dt
             
-            self._unscaled_meta_features_table = self._extract_and_append(dataset_name, X, y, self._unscaled_meta_features_table)
+            self.meta_features_table = self._extract_and_append(dataset_name, X, y, self.meta_features_table)
 
             # Quantifiers evaluation
             X_train, y_train, X_test, y_test = self._load_train_test_set(dataset_name, train_set_path, test_set_path)
@@ -58,13 +61,9 @@ class KNNRecommender(BaseRecommender):
             # # if i == 5:
             # #     break
 
-        # Normalize the extracted meta-features
-        self.meta_features_table = self._get_normalized_meta_features_table(self._unscaled_meta_features_table, method="minmax")
-
         # Concatenate all the evaluations into a single evaluation table
         # and then sort and aggregate the quantifiers evaluations
         self._not_agg_evaluation_table = pd.concat(evaluation_list, axis=0)
-
         self.evaluation_table = self._not_agg_evaluation_table.sort_values(by=['quantifier', 'dataset'])
         self.evaluation_table = self.evaluation_table.sort_values(by=['quantifier', 'dataset'])
         self.evaluation_table = self.evaluation_table.groupby(["quantifier", "dataset"]).agg(
@@ -100,13 +99,7 @@ class KNNRecommender(BaseRecommender):
 
     def recommend(self, X, y = None):
         assert self._fitted, "The model must be fitted before making predictions."
-
-        if self.supervised:
-            _, X_test = self.mfe.extract_meta_features(X, y)
-        else:
-            _, X_test = self.mfe.extract_meta_features(X)
-        X_test = self._fitted_scaler.transform(np.array(X_test).reshape(1, -1))
-
+        _, X_test = self.mfe.extract_meta_features(X, y)
         distances, indices = self.model.kneighbors(X_test.reshape(1, -1))
         distances, indices = distances[0], indices[0]
 
@@ -136,7 +129,6 @@ class KNNRecommender(BaseRecommender):
 
         with pd.HDFStore(meta_table_path) as store:
             store.put("meta_features_table", self.meta_features_table)
-            store.put("unscaled_meta_features_table", self._unscaled_meta_features_table)
             store.put("not_agg_evaluation_table", self._not_agg_evaluation_table)
             store.put("evaluation_table", self.evaluation_table)
             store.put("arr_table", self.arr_table)
@@ -148,18 +140,10 @@ class KNNRecommender(BaseRecommender):
 
         with pd.HDFStore(meta_table_path) as store:
             self.meta_features_table = store.get("meta_features_table")
-            self._unscaled_meta_features_table = store.get("unscaled_meta_features_table")
             self._not_agg_evaluation_table = store.get("not_agg_evaluation_table")
             self.evaluation_table = store.get("evaluation_table")
             self.arr_table = store.get("arr_table")
             self._scaler_method = store.get('scaler_method').values[0]
-
-        data = self._unscaled_meta_features_table.values
-        if self._scaler_method == "zscore":
-            self._fitted_scaler = StandardScaler()
-        elif self._scaler_method == "minmax":
-            self._fitted_scaler = MinMaxScaler()
-        self._fitted_scaler.fit(data)
 
         self.model.fit(self.meta_features_table.values)
         self._fitted = True
@@ -177,22 +161,15 @@ class KNNRecommender(BaseRecommender):
                                                              "true_ranking_arr"], index=self.arr_table.index.tolist())
 
         recommender_ = clone(self.model)
-        if self._scaler_method == "zscore":
-            scaler = StandardScaler()
-        elif self._scaler_method == "minmax":
-            scaler = MinMaxScaler()
-
         for dataset in self.arr_table.index.tolist():
-            unscaled_X_test = self._unscaled_meta_features_table.loc[dataset].values
+            X_test = self.meta_features_table.loc[dataset].values
             y_test = self.arr_table.loc[dataset].values
 
-            unscaled_X_train = self._unscaled_meta_features_table.drop(index=dataset).values
+            X_train = self.meta_features_table.drop(index=dataset).values
             y_train = (self.arr_table.drop(index=dataset)).values
 
-            X_train = scaler.fit_transform(unscaled_X_train)
             recommender_.fit(X_train, y_train)
 
-            X_test = scaler.transform(np.array(unscaled_X_test).reshape(1, -1))
             distances, indices = recommender_.kneighbors(X_test.reshape(1, -1))
             distances, indices = distances[0], indices[0]
             quantifiers = self.arr_table.columns
