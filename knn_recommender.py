@@ -13,11 +13,14 @@ class KNNRecommender(BaseRecommender):
     def __init__(self, supervised: bool = True, n_neighbors: int = 1, _load: bool = True):
         super().__init__(supervised, _load)
         if _load == False:
-            self.model = Pipeline([
+            self.transform_pipeline = Pipeline([
                 ("normalization", MinMaxScaler()),
-                ("variance_threshold", VarianceThreshold()),
-                ("model", NearestNeighbors(n_neighbors=n_neighbors, metric='manhattan', n_jobs=-1))
+                ("variance_threshold", VarianceThreshold())
             ])
+            # Since our NearestNeighbors doesn't implement a .predict() method, we can't include
+            # it in the Pipeline
+            self.model = NearestNeighbors(n_neighbors=n_neighbors, metric='manhattan', n_jobs=-1)
+            
             self.meta_features_table = None
             self.arr_table = None
             self.n_neighbors = n_neighbors
@@ -34,7 +37,7 @@ class KNNRecommender(BaseRecommender):
     def fit(self, full_set_path: str, train_set_path: str, test_set_path: str) -> None:
         dataset_list = [csv for csv in os.listdir(full_set_path) if csv.endswith(".csv")]
         evaluation_list = []
-        for _, dataset in enumerate(dataset_list):
+        for i, dataset in enumerate(dataset_list):
             dataset_name = dataset.split(".csv")[0]
             
             # Meta-Features extraction
@@ -57,9 +60,9 @@ class KNNRecommender(BaseRecommender):
                                                                                   X_test=X_test,
                                                                                   y_test=y_test,
                                                                                   func_type="utility"))
-            # # # DELETE THIS
-            # # if i == 5:
-            # #     break
+            # DELETE THIS
+            if i == 5:
+                break
 
         # Concatenate all the evaluations into a single evaluation table
         # and then sort and aggregate the quantifiers evaluations
@@ -94,13 +97,17 @@ class KNNRecommender(BaseRecommender):
                 arr_row.append(arr_i)
             self.arr_table.loc[dt] = arr_row
 
-        self.model.fit(self.meta_features_table.values)
+        transformed_data = self.transform_pipeline.fit_transform(self.meta_features_table.values)
+        self.model.fit(transformed_data)
         self._fitted = True  
 
     def recommend(self, X, y = None):
         assert self._fitted, "The model must be fitted before making predictions."
         _, X_test = self.mfe.extract_meta_features(X, y)
-        distances, indices = self.model.kneighbors(X_test.reshape(1, -1))
+        X_test = np.array(X_test).reshape(1, -1)
+        
+        transformed_data = self.transform_pipeline.transform(X_test)        
+        distances, indices = self.model.kneighbors(transformed_data)
         distances, indices = distances[0], indices[0]
 
         quantifiers = self.arr_table.columns
@@ -127,12 +134,19 @@ class KNNRecommender(BaseRecommender):
         if not meta_table_path.endswith(".h5"):
             meta_table_path += ".h5"
 
+        scaler = self.transform_pipeline.named_steps['normalization']
+        if isinstance(scaler, MinMaxScaler):
+            scaler_method = pd.Series(["minmax"])
+        elif isinstance(scaler, StandardScaler):
+            scaler_method = pd.Series(["zscore"])        
+        import pdb; pdb.set_trace()
+
         with pd.HDFStore(meta_table_path) as store:
             store.put("meta_features_table", self.meta_features_table)
             store.put("not_agg_evaluation_table", self._not_agg_evaluation_table)
             store.put("evaluation_table", self.evaluation_table)
             store.put("arr_table", self.arr_table)
-            store.put('scaler_method', pd.Series([self._scaler_method]), format="table")
+            store.put('scaler_method', scaler_method, format="table")
     
     def load_fit_meta_table(self, meta_table_path: str):
         if not meta_table_path.endswith(".h5"):
@@ -143,9 +157,21 @@ class KNNRecommender(BaseRecommender):
             self._not_agg_evaluation_table = store.get("not_agg_evaluation_table")
             self.evaluation_table = store.get("evaluation_table")
             self.arr_table = store.get("arr_table")
-            self._scaler_method = store.get('scaler_method').values[0]
+            self._scaler_method = store.get('scaler_method')#.values[0]
+        
+        import pdb; pdb.set_trace()
+        if self._scaler_method == "minmax":
+            scaler = MinMaxScaler()
+        elif self._scaler_method == "zscore":
+            scaler = StandardScaler()
+        
 
-        self.model.fit(self.meta_features_table.values)
+        self.transform_pipeline = Pipeline([
+            ("normalization", scaler),
+            ("variance_threshold", VarianceThreshold())
+        ])
+        transformed_data = self.transform_pipeline.fit_transform(self.meta_features_table.values)
+        self.model.fit(transformed_data)
         self._fitted = True
     
     # Evaluate Quantifier Recommender with Leave-One-Out
@@ -159,18 +185,22 @@ class KNNRecommender(BaseRecommender):
                                                              "true_ranking",
                                                              "true_ranking_weights",
                                                              "true_ranking_arr"], index=self.arr_table.index.tolist())
-
+        transform_pipeline_ = clone(self.transform_pipeline)
         recommender_ = clone(self.model)
         for dataset in self.arr_table.index.tolist():
             X_test = self.meta_features_table.loc[dataset].values
+            X_test = np.array(X_test).reshape(1, -1)
             y_test = self.arr_table.loc[dataset].values
 
             X_train = self.meta_features_table.drop(index=dataset).values
             y_train = (self.arr_table.drop(index=dataset)).values
 
-            recommender_.fit(X_train, y_train)
+            transform_pipeline_.fit(X_train)
+            transformed_train = transform_pipeline_.transform(X_train)
+            recommender_.fit(transformed_train, y_train)
 
-            distances, indices = recommender_.kneighbors(X_test.reshape(1, -1))
+            transformed_test = transform_pipeline_.transform(X_test)
+            distances, indices = recommender_.kneighbors(transformed_test)
             distances, indices = distances[0], indices[0]
             quantifiers = self.arr_table.columns
             new_arr_array = np.array(len(quantifiers) * [np.float64(0)])

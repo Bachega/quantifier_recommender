@@ -28,11 +28,17 @@ class RegressionRecommender(BaseRecommender):
         if not meta_table_path.endswith(".h5"):
             meta_table_path += ".h5"
 
+        scaler = self.model.named_steps['normalization']
+        if isinstance(scaler, MinMaxScaler):
+            scaler_method = pd.Series(["minmax"])
+        elif isinstance(scaler, StandardScaler):
+            scaler_method = pd.Series(["zscore"])
+
         with pd.HDFStore(meta_table_path) as store:
             store.put("meta_features_table", self.meta_features_table)
             store.put("not_agg_evaluation_table", self._not_agg_evaluation_table)
             store.put("evaluation_table", self.evaluation_table)
-            store.put('scaler_method', pd.Series([self._scaler_method]), format="table")
+            store.put('scaler_method', scaler_method, format="table")
     
     def load_fit_meta_table(self, meta_table_path: str):
         if not meta_table_path.endswith(".h5"):
@@ -43,6 +49,19 @@ class RegressionRecommender(BaseRecommender):
             self._not_agg_evaluation_table = store.get("not_agg_evaluation_table")
             self.evaluation_table = store.get("evaluation_table")
             self._scaler_method = store.get('scaler_method').values[0]
+        
+        scaler = None
+        if self._scaler_method == "minmax":
+            scaler = MinMaxScaler()
+        elif self._scaler_method == "zscore":
+            scaler = StandardScaler()
+        
+        model = type(self.model.named_steps['model'])()
+        self.model = Pipeline([
+            ("normalization", scaler),
+            ("variance_threshold", VarianceThreshold()),
+            ("model", model)
+        ])
 
         X_train = self.meta_features_table.values
         for quantifier in self.evaluation_table.index.levels[0].tolist():
@@ -57,7 +76,7 @@ class RegressionRecommender(BaseRecommender):
         # Appending the evaluations to a list and then concatenating them
         # to a pandas dataframe is O(n)
         evaluation_list = []
-        for _, dataset in enumerate(dataset_list):
+        for i, dataset in enumerate(dataset_list):
             dataset_name = dataset.split(".csv")[0]
             
             # Meta-Features extraction
@@ -79,9 +98,9 @@ class RegressionRecommender(BaseRecommender):
                                                                                     X_test,
                                                                                     y_test,
                                                                                     func_type="cost"))
-            # # # DELETE THIS
-            # # if i == 5:
-            # #     break
+            # DELETE THIS
+            if i == 5:
+                break
 
         # Concatenate all the evaluations into a single evaluation table
         # and then sort and aggregate the quantifiers evaluations
@@ -105,6 +124,7 @@ class RegressionRecommender(BaseRecommender):
         assert k > 0 or k == -1, "The number of quantifiers to recommend must be greater than 0 or -1 to recommend all quantifiers."
         k = len(self.model_dict) if k == -1 else k
         _, X_test = self.mfe.extract_meta_features(X, y)
+        X_test = np.array(X_test).reshape(1, -1)
         
         result = []
         i = 0
@@ -134,6 +154,7 @@ class RegressionRecommender(BaseRecommender):
             recommender_ = clone(recommender)
             for dataset in self.evaluation_table.index.levels[1]:
                 X_test = self.meta_features_table.loc[dataset].values
+                X_test = np.array(X_test).reshape(1, -1)
                 y_test = self.evaluation_table.loc[quantifier, dataset]['abs_error']
 
                 X_train = self.meta_features_table.drop(index=dataset).values
