@@ -15,7 +15,7 @@ class RegressionRecommender(BaseRecommender):
 
         super().__init__(supervised=supervised, _load=_load)
         if _load == False:
-            self.model = Pipeline([
+            self.__model = Pipeline([
                 ("normalization", StandardScaler()),
                 ("variance_threshold", VarianceThreshold()),
                 ("model", model)
@@ -28,17 +28,17 @@ class RegressionRecommender(BaseRecommender):
         if not meta_table_path.endswith(".h5"):
             meta_table_path += ".h5"
 
-        scaler = self.model.named_steps['normalization']
+        scaler = self.__model.named_steps['normalization']
         if isinstance(scaler, MinMaxScaler):
-            scaler_method = pd.Series(["minmax"])
+            scaler_method = "minmax"
         elif isinstance(scaler, StandardScaler):
-            scaler_method = pd.Series(["zscore"])
+            scaler_method = "zscore"
 
         with pd.HDFStore(meta_table_path) as store:
             store.put("meta_features_table", self.meta_features_table)
             store.put("not_agg_evaluation_table", self._not_agg_evaluation_table)
             store.put("evaluation_table", self.evaluation_table)
-            store.put('scaler_method', scaler_method, format="table")
+            store.put("scaler_method", pd.Series([scaler_method], index=["scaler_method"]))
     
     def load_fit_meta_table(self, meta_table_path: str):
         if not meta_table_path.endswith(".h5"):
@@ -48,16 +48,15 @@ class RegressionRecommender(BaseRecommender):
             self.meta_features_table = store.get("meta_features_table")
             self._not_agg_evaluation_table = store.get("not_agg_evaluation_table")
             self.evaluation_table = store.get("evaluation_table")
-            self._scaler_method = store.get('scaler_method').values[0]
+            self._scaler_method = store["scaler_method"].iloc[0]
         
-        scaler = None
         if self._scaler_method == "minmax":
             scaler = MinMaxScaler()
         elif self._scaler_method == "zscore":
             scaler = StandardScaler()
         
-        model = type(self.model.named_steps['model'])()
-        self.model = Pipeline([
+        model = type(self.__model.named_steps['model'])()
+        self.__model = Pipeline([
             ("normalization", scaler),
             ("variance_threshold", VarianceThreshold()),
             ("model", model)
@@ -66,7 +65,7 @@ class RegressionRecommender(BaseRecommender):
         X_train = self.meta_features_table.values
         for quantifier in self.evaluation_table.index.levels[0].tolist():
             y_train = self.evaluation_table.loc[quantifier]['abs_error'].values
-            self.model_dict[quantifier] = clone(self.model)
+            self.model_dict[quantifier] = clone(self.__model)
             self.model_dict[quantifier].fit(X_train, y_train)
         self._fitted = True
     
@@ -115,7 +114,7 @@ class RegressionRecommender(BaseRecommender):
         y_train = None
         for quantifier in self.evaluation_table.index.levels[0].tolist():
             y_train = self.evaluation_table.loc[quantifier]['abs_error'].values
-            self.model_dict[quantifier] = clone(self.model)
+            self.model_dict[quantifier] = clone(self.__model)
             self.model_dict[quantifier].fit(X_train, y_train)
         self._fitted = True
     

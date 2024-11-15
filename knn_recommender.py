@@ -136,17 +136,16 @@ class KNNRecommender(BaseRecommender):
 
         scaler = self.transform_pipeline.named_steps['normalization']
         if isinstance(scaler, MinMaxScaler):
-            scaler_method = pd.Series(["minmax"])
+            scaler_method = "minmax" 
         elif isinstance(scaler, StandardScaler):
-            scaler_method = pd.Series(["zscore"])        
-        import pdb; pdb.set_trace()
+            scaler_method = "zscore"      
 
         with pd.HDFStore(meta_table_path) as store:
             store.put("meta_features_table", self.meta_features_table)
             store.put("not_agg_evaluation_table", self._not_agg_evaluation_table)
             store.put("evaluation_table", self.evaluation_table)
             store.put("arr_table", self.arr_table)
-            store.put('scaler_method', scaler_method, format="table")
+            store.put("scaler_method", pd.Series([scaler_method], index=["scaler_method"]))
     
     def load_fit_meta_table(self, meta_table_path: str):
         if not meta_table_path.endswith(".h5"):
@@ -157,15 +156,13 @@ class KNNRecommender(BaseRecommender):
             self._not_agg_evaluation_table = store.get("not_agg_evaluation_table")
             self.evaluation_table = store.get("evaluation_table")
             self.arr_table = store.get("arr_table")
-            self._scaler_method = store.get('scaler_method')#.values[0]
+            self._scaler_method = store["scaler_method"].iloc[0]
         
-        import pdb; pdb.set_trace()
         if self._scaler_method == "minmax":
             scaler = MinMaxScaler()
         elif self._scaler_method == "zscore":
             scaler = StandardScaler()
         
-
         self.transform_pipeline = Pipeline([
             ("normalization", scaler),
             ("variance_threshold", VarianceThreshold())
