@@ -20,12 +20,12 @@ class RegressionRecommender(BaseRecommender):
                 ("model", model)
             ])
             self.model_dict = {}
-
+            
             self.meta_features_table = None
             self._not_agg_evaluation_table = None
             self.evaluation_table = None
         super().__init__(supervised=supervised, load_default=load_default)
-            
+
     def save_meta_table(self, meta_table_path: str):
         if not meta_table_path.endswith(".h5"):
             meta_table_path += ".h5"
@@ -115,6 +115,19 @@ class RegressionRecommender(BaseRecommender):
 
         return tuple(quantifiers), tuple(weights)
 
+    @property
+    def model(self):
+        return self.__model.named_steps['model']
+    
+    @model.setter
+    def model(self, _model):
+        assert is_regressor(_model), "The regression model must be a scikit-learn regressor"
+        self.__model.set_params(model=_model)
+        if self._fitted:
+            self._fit_method(self.meta_features_table, self._not_agg_evaluation_table, self.evaluation_table)
+
+    def get_pipeline(self):
+        return self.__model
 
     # Evaluate Quantifier Recommender with Leave-One-Out
     def leave_one_out_evaluation(self, recommender_eval_path: str = None, quantifiers_eval_path: str = None):
