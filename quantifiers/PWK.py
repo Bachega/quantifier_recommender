@@ -1,21 +1,16 @@
 import numpy as np
-import pandas as pd
-import time
 
 def PWK(test, clf):
-    #test['class'] = test['class'].astype('str')
-    #test = pd.DataFrame(test.drop(['class'], axis=1))
-    test = pd.DataFrame(test)
-    #print(test)
-    #exit()
-    #test = test.reshape(1, -1)
-    #_, pred = np.unique(clf.predict(test.drop(['class'], axis=1)), return_counts=True)
-    start = time.time()
-    _, pred = np.unique(clf.predict(test), return_counts=True)
-    stop = time.time()
-    #return stop - start
-    prop = pred/sum(pred)
-    #print(prop[0]) 
-    prop = np.array(prop[0])
-    #exit()
-    return prop
+    # Predict class labels for the given data
+    predicted_labels = clf.predict(test)
+
+    # Compute the distribution of predicted labels
+    unique_labels, label_counts = np.unique(predicted_labels, return_counts=True)
+
+    # Calculate the prevalence for each class
+    class_prevalences = label_counts / label_counts.sum()
+
+    # Map each class label to its prevalence
+    prevalences = {label: prevalence for label, prevalence in zip(unique_labels, class_prevalences)}
+
+    return prevalences[1]

@@ -12,6 +12,7 @@ from quantifiers.MS import MS_method
 from quantifiers.MS_2 import MS_method2
 from quantifiers.T50 import T50
 from quantifiers.PWK import PWK
+from quantifiers.PWKCLF import PWKCLF
 from quantifiers.GAC import GAC
 from quantifiers.GPAC import GPAC
 from quantifiers.FM import FM
@@ -104,8 +105,8 @@ def apply_quantifier(qntMethod,
         return PCC(clf, test_data,thr)
     if qntMethod == "PACC":
         return PACC(clf, test_data, TprFpr, thr)
-    # if qntMethod == "PWK":
-    #     return PWK(test_data, external_qnt)
+    if qntMethod == "PWK":
+        return PWK(test_data, PWKCLF())
     if qntMethod == "GAC":
         sc_p = np.append(np.array(p_score), n_score)
         sc_n = 1-sc_p
