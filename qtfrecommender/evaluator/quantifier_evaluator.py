@@ -2,6 +2,12 @@ import os
 import pandas as pd
 import numpy as np
 import time
+from copy import deepcopy
+
+from mlquantify.methods import CC, ACC, MAX, PCC, PACC, X_method, MS, MS2, HDy, SMM, SORD, DyS, PWK, T50, EMQ
+from mlquantify.classification import PWKCLF
+from mlquantify import set_arguments
+from mlquantify.methods import AGGREGATIVE
 
 from utils.getTrainingScores import getTrainingScores
 from utils.getTPRFPR import getTPRFPR
@@ -10,18 +16,7 @@ from sklearn.calibration import CalibratedClassifierCV
 from sklearn.linear_model import LogisticRegression
 
 class QuantifierEvaluator:
-    __quantifiers = ["ACC",
-                     "CC",
-                     "DyS",
-                     "HDy",
-                     "MAX",
-                     "MS",
-                     "PACC",
-                     "PCC",
-                     "SMM",
-                     "SORD",
-                     "X",
-                     "PWK"]
+    __remove = ['GAC', 'GPAC', 'FM', 'DySsyn']
     
     __qtf_evaluation_table_columns = ["quantifier",
                                       "dataset",
@@ -34,6 +29,10 @@ class QuantifierEvaluator:
                                       "run_time"]
     
     def __init__(self, _regenerate_seeds = False) -> None:
+        self.__quantifiers = deepcopy(AGGREGATIVE)
+        for __qtf in self.__remove:
+            self.__quantifiers.pop(__qtf, None)
+        
         self.qtf_evaluation_table = None 
 
         if _regenerate_seeds:
@@ -80,21 +79,26 @@ class QuantifierEvaluator:
             self.__qtf_evaluation_table_columns[7] = "inv_abs_error"
         self.qtf_evaluation_table = pd.DataFrame(columns=self.__qtf_evaluation_table_columns)
 
-        if quantifiers is None:
-            quantifiers = self.__quantifiers
-        
         if not isinstance(quantifiers, list):
             raise TypeError("Argument 'quantifiers' needs to be a 'list' of quantifiers to evaluate")
 
-        if not set(quantifiers).issubset(self.__quantifiers):
-            raise ValueError(f"List of quantifiers contains invalid values (like names of non implemented quantifiers). Available quantifiers are {self.__quantifiers}")
+        if quantifiers is None:
+            quantifiers = self.__quantifiers
 
-        priors = np.array([np.count_nonzero(y_train == _class) for _class in [0, 1]])
-        clf = None
-        clf = LogisticRegression(random_state=42, n_jobs=-1)
+        if not set(quantifiers).issubset(list(self.__quantifiers.keys())):
+            raise ValueError(f"List of quantifiers contains invalid values (like names of non implemented quantifiers). Available quantifiers are {list(self.__quantifiers.keys())}")
         
-        calib_clf = CalibratedClassifierCV(clf, cv=3, n_jobs=-1)
-        calib_clf.fit(X_train, y_train)
+        train_scores, clf = getTrainingScores(X_train, y_train, 10, LogisticRegression(random_state=42))
+        y_labels = train_scores.pop('class').to_numpy()
+        test_scores = clf.predict_proba(X_test)
+        y_pred = clf.predict(X_test)
+        set_arguments(y_pred=y_pred.tolist(), # Predictions for the TEST set ()
+                      posteriors_test=test_scores, # Scores of the TEST set ()
+                      y_labels=y_labels.tolist(), # True labels of the TRAIN set ()
+                      posteriors_train=train_scores # Scores extracted from TRAIN set ()
+                    )
+
+  
 
         scores = getTrainingScores(X_train, y_train, 10, clf)[0]
         tprfpr = getTPRFPR(scores)
