@@ -41,7 +41,8 @@ def getTrainingScores(X_train, Y_train, folds, clf, verbose = False):
         
         clf.fit(tr_data, tr_lbl)
         
-        results.extend(clf.predict_proba(valid_data)[:,1])     #evaluating scores
+        # results.extend(clf.predict_proba(valid_data)[:,1])     #evaluating scores
+        results.extend(clf.predict_proba(valid_data))     #evaluating scores
         class_labl.extend(valid_lbl)
         
         if verbose:
@@ -52,7 +53,7 @@ def getTrainingScores(X_train, Y_train, folds, clf, verbose = False):
     
     train_scores = np.c_[results,class_labl]
     train_scores = pd.DataFrame(train_scores)
-    train_scores.columns = ['scores', 'class']
+    train_scores.columns = ['neg_scores', 'pos_scores', 'class']
     train_scores['class'] = np.int_(train_scores['class'])
     
     return train_scores, clf      
