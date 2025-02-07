@@ -27,8 +27,8 @@ def getTPRFPR(scores):
         fp = len(scores[(scores['scores'] > threshold) & (scores['class']==0)])
         tp = len(scores[(scores['scores'] > threshold) & (scores['class']==1)])
 
-        tpr = round(tp/total_positive,2) if total_positive != 0 else 0
-        fpr = round(fp/total_negative,2) if total_negative != 0 else 0
+        tpr = tp/total_positive if total_positive != 0 else 0
+        fpr = fp/total_negative if total_negative != 0 else 0
 
         aux = pd.DataFrame([[threshold, fpr, tpr]])
         aux.columns = ['threshold', 'fpr', 'tpr']

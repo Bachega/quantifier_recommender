@@ -35,7 +35,8 @@ def apply_quantifier(qntMethod,
                     measure,                     
                     test_data,
                     test_quapy, 
-                    external_qnt):
+                    external_qnt,
+                    priors):
     """This function is an interface for running different quantification methods.
  
     Parameters
@@ -66,6 +67,8 @@ def apply_quantifier(qntMethod,
         A dataframe of test sample for Quapy package.
     model_quapy : object
         EMQ Model fitted using Quapy package (base RF calssifier)
+    priors : array-like
+        Initial prior probabilities for each class.
     Returns
     -------
     array
@@ -107,6 +110,8 @@ def apply_quantifier(qntMethod,
         return PACC(clf, test_data, TprFpr, thr)
     if qntMethod == "PWK":
         return PWK(test_data, PWKCLF())
+    if qntMethod == "EMQ":
+        return EMQ()
     if qntMethod == "GAC":
         sc_p = np.append(np.array(p_score), n_score)
         sc_n = 1-sc_p

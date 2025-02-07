@@ -20,7 +20,8 @@ class QuantifierEvaluator:
                      "PCC",
                      "SMM",
                      "SORD",
-                     "X"]
+                     "X",
+                     "PWK"]
     
     __qtf_evaluation_table_columns = ["quantifier",
                                       "dataset",
@@ -88,6 +89,7 @@ class QuantifierEvaluator:
         if not set(quantifiers).issubset(self.__quantifiers):
             raise ValueError(f"List of quantifiers contains invalid values (like names of non implemented quantifiers). Available quantifiers are {self.__quantifiers}")
 
+        priors = np.array([np.count_nonzero(y_train == _class) for _class in [0, 1]])
         clf = None
         clf = LogisticRegression(random_state=42, n_jobs=-1)
         
@@ -150,7 +152,8 @@ class QuantifierEvaluator:
                                                         measure='topsoe',
                                                         test_data=test_sample,
                                                         test_quapy=None,
-                                                        external_qnt=None)
+                                                        external_qnt=None,
+                                                        priors=priors)
                         stop = time.perf_counter()
                         run_time = stop - start
                         # pred_pos_prop = np.round(pred_pos_prop, 2)  #predicted class proportion
