@@ -60,7 +60,7 @@ MarkupSafe==3.0.2
 matplotlib==3.9.2
 matplotlib-inline==0.1.7
 mistune==3.0.2
-mlquantify==0.0.11.11
+mlquantify==0.1.0
 msgpack==1.1.0
 nbclient==0.10.0
 nbconvert==7.16.4
