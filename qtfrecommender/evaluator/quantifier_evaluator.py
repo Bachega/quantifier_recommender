@@ -21,6 +21,7 @@ class QuantifierEvaluator:
     __qtf_evaluation_table_columns = ["quantifier",
                                       "dataset",
                                       "sample_size",
+                                      "sampling_seed",
                                       "iteration",
                                       "alpha",
                                       "pred_prev",
@@ -38,10 +39,11 @@ class QuantifierEvaluator:
         self.__seed = int(91243342813999289490899206158518312834)
         self.__rng = np.random.default_rng(seed=self.__seed)
 
-    def __append_to_qtf_evaluation_table(self, quantifier, dataset_name, sample_size, iteration, alpha, pred_prev, perf_metric, run_time):        
+    def __append_to_qtf_evaluation_table(self, quantifier, dataset_name, sample_size, sampling_seed, iteration, alpha, pred_prev, perf_metric, run_time):        
         self.qtf_evaluation_table.loc[len(self.qtf_evaluation_table.index)] = [quantifier,
                                                                                dataset_name,
                                                                                sample_size,
+                                                                               sampling_seed,
                                                                                iteration,
                                                                                alpha,
                                                                                pred_prev,
@@ -93,11 +95,13 @@ class QuantifierEvaluator:
                     pos_size = int(round(sample_size * alpha, 2))
                     neg_size = sample_size - pos_size
 
-                    sample_test_pos = df_test_pos.sample( int(pos_size), replace = False, random_state=self.__generate_seed() )
-                    sample_test_neg = df_test_neg.sample( int(neg_size), replace = False, random_state=self.__generate_seed() )
+                    sampling_seed = self.__generate_seed()
+
+                    sample_test_pos = df_test_pos.sample( int(pos_size), replace = False, random_state=sampling_seed )
+                    sample_test_neg = df_test_neg.sample( int(neg_size), replace = False, random_state=sampling_seed )
 
                     sample_test = pd.concat([sample_test_pos, sample_test_neg])
-                    sample_test = sample_test.sample(frac=1, random_state=self.__generate_seed()).reset_index(drop=True)
+                    sample_test = sample_test.sample(frac=1, random_state=sampling_seed).reset_index(drop=True)
 
                     y_test = sample_test.iloc[:, -1].to_numpy()
                     X_test = sample_test.iloc[:, :-1].to_numpy()
@@ -114,7 +118,7 @@ class QuantifierEvaluator:
                             y_labels=y_labels.tolist(), # True labels of the TRAIN set ()
                             posteriors_train=train_scores # Scores extracted from TRAIN set ()
                         )
-
+                    
                     for key, value in self.__quantifiers.items():
                         if key == "PWK":
                             qtf = value(learner=PWKCLF())
@@ -124,10 +128,8 @@ class QuantifierEvaluator:
                         start = time.perf_counter()
                         
                         qtf.fit(X_train, y_train)
-                        pred_pos_prop = qtf.predict(X_test)
-                        # import pdb; pdb.set_trace()
                         pred_dict = qtf.predict(X_test)
-                        pred_pos_prop = pred_dict[1] if 1 in pred_dict else 0
+                        pred_pos_prop = pred_dict[1] if 1 in pred_dict else 0.0
                         
                         stop = time.perf_counter()
                         run_time = stop - start
@@ -140,6 +142,7 @@ class QuantifierEvaluator:
                         self.__append_to_qtf_evaluation_table(key,
                                                               dataset_name,
                                                               sample_size,
+                                                              sampling_seed,
                                                               iter+1,
                                                               alpha,
                                                               pred_pos_prop,
