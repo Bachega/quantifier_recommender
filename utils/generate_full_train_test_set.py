@@ -19,7 +19,13 @@ def generate_full_train_test_set(source_path: str, full_dest_path: str, train_de
     elif scaling_method == "zscore":
         scaler = StandardScaler()
 
+    # #delete
+    # old_list = [csv for csv in os.listdir(source_path + '/bkp/') if csv.endswith(".csv")]
+    
     dataset_list = [csv for csv in os.listdir(source_path) if csv.endswith(".csv")]
+
+    # #delete
+    # dataset_list = [csv for csv in dataset_list if csv not in old_list]
 
     if not os.path.exists(full_dest_path):
         os.makedirs(full_dest_path)

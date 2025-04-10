@@ -1,0 +1,15 @@
+Agrawal1: Cannot take a larger sample than population when 'replace=False'
+breast: Cannot have number of splits n_splits=10 greater than the number of samples: n_samples=7.
+colon: n_splits=10 cannot be greater than the number of members in each class.
+CreditCardFraudDetection: This solver needs samples of at least 2 classes in the data, but the data contains only one class: np.float64(0.0)
+Higgs: Cannot take a larger sample than population when 'replace=False'
+Klaverjas2018: Cannot take a larger sample than population when 'replace=False'
+MiniBooNE: Cannot take a larger sample than population when 'replace=False'
+poker: Cannot take a larger sample than population when 'replace=False'
+prostate: Cannot have number of splits n_splits=10 greater than the number of samples: n_samples=6.
+RelevantImagesDatasetTEST: This solver needs samples of at least 2 classes in the data, but the data contains only one class: np.float64(0.0)
+simulated_bank_marketing: Cannot take a larger sample than population when 'replace=False'
+simulated_electricity: Cannot take a larger sample than population when 'replace=False'
+Test_Dataset: maximum recursion depth exceeded
+vehicle_sensIT: Cannot have number of splits n_splits=10 greater than the number of samples: n_samples=5.
+wdbc: Cannot take a larger sample than population when 'replace=False'
