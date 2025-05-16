@@ -54,9 +54,9 @@ class BaseRecommender(ABC):
                                                                                     y_test=y_test,
                                                                                     func_type=func_type))
             # DELETE THIS
-            if i == 3:
-                break
-            print(i)
+            # if i == 3:
+            #     break
+            # print(i)
         
         not_aggregated_evaluation_table = pd.concat(evaluation_list, axis=0)
         evaluation_table = self._aggregate_evaluation_table(not_aggregated_evaluation_table, func_type)

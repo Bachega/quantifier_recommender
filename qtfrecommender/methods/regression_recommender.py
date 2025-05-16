@@ -1,3 +1,4 @@
+from pathlib import Path
 from .base_recommender import BaseRecommender
 
 import os
@@ -176,9 +177,17 @@ class RegressionRecommender(BaseRecommender):
           
         if not recommender_eval_path is None:
             recommender_evaluation_table.to_csv(recommender_eval_path)
+
+            # For Azure
+            Path(recommender_eval_path.replace("./", "outputs/", 1)).parent.mkdir(parents=True, exist_ok=True)
+            recommender_evaluation_table.to_csv(recommender_eval_path.replace("./", "outputs/", 1))
         
         if not quantifiers_eval_path is None:
             self._not_agg_evaluation_table.to_csv(quantifiers_eval_path)
+
+            # For Azure
+            Path(quantifiers_eval_path).parent.mkdir(parents=True, exist_ok=True)
+            self._not_agg_evaluation_table.to_csv(quantifiers_eval_path.replace("./", "outputs/", 1))
         
         not_agg_evaluation_table = self._not_agg_evaluation_table.copy(deep=True)
         not_agg_evaluation_table.sort_values(by=['quantifier', 'dataset'], inplace=True)

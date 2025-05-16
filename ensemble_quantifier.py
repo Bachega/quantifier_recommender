@@ -1,3 +1,4 @@
+from pathlib import Path
 import pandas as pd
 import numpy as np
 
@@ -219,5 +220,9 @@ class EnsembleQuantifier:
         ensemble_quantifier_eval.reset_index(drop=True, inplace=True)
         if k_evaluation_path is not None:
             ensemble_quantifier_eval.to_csv(k_evaluation_path, index=False)
+
+            # For Azure
+            Path(k_evaluation_path.replace("./", "outputs/", 1)).parent.mkdir(parents=True, exist_ok=True)
+            ensemble_quantifier_eval.to_csv(k_evaluation_path.replace("./", "outputs/", 1), index=False)
             
         return ensemble_quantifier_eval
