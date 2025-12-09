@@ -214,6 +214,8 @@ class EnsembleQuantifier:
                                             "abs_error": np.abs(np.sum(np.array(predicted_prev_list) * np.array(weight_list)) - alph),
                                             "run_time": run_time_sum}
                         ensemble_quantifier_eval.loc[len(ensemble_quantifier_eval)] = ensemble_quantifier_row
+            
+            print(f"Finished {dataset}")
     
         ensemble_quantifier_eval.sort_values(by=['quantifier', 'dataset'], inplace=True)
         ensemble_quantifier_eval.reset_index(drop=True, inplace=True)
