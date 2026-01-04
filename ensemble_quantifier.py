@@ -223,3 +223,134 @@ class EnsembleQuantifier:
             ensemble_quantifier_eval.to_csv(k_evaluation_path, index=False)
             
         return ensemble_quantifier_eval
+    
+    def evaluation_opt(self, recommender_type, recommender_evaluation, quantifiers_evaluation, k_evaluation_path: str = None):
+        assert recommender_type == "regression" or recommender_type == "knn", "recommender_type must be 'regression' or 'knn'."
+
+        # 1. Preparação da estrutura de dados
+        # Pivotamos a tabela para que os QUANTIFICADORES virem COLUNAS.
+        # Isso alinha os dados para operações matriciais (vetorização).
+        # index: Identificadores únicos da amostra (exceto dataset, que tratamos no loop externo)
+        # columns: O nome do quantificador
+        # values: As métricas que precisamos agregar
+        df_pivot = quantifiers_evaluation.pivot_table(
+            index=["dataset", "sample_size", "sampling_seed", "iteration", "alpha"], 
+            columns="quantifier", 
+            values=["pred_prev", "run_time"],
+            aggfunc='first' # Garante pegar o valor único existente
+        )
+
+        results = []
+        datasets = quantifiers_evaluation["dataset"].unique().tolist()
+
+        for dataset in datasets:
+            # Recupera o ranking específico deste dataset
+            ranking = recommender_evaluation.loc[dataset]["predicted_ranking"]
+            
+            # Seleciona apenas as linhas deste dataset na matriz pivotada
+            # .loc[dataset] remove o nível 'dataset' do índice, facilitando o uso
+            try:
+                # O xs garante que pegamos apenas o dataset atual de forma eficiente
+                dataset_data = df_pivot.xs(dataset, level="dataset") 
+            except KeyError:
+                continue # Dataset não encontrado no pivot (caso raro de incompatibilidade)
+
+            # Extrai as matrizes de dados alinhadas com o Ranking
+            # Se o ranking tem ['Q1', 'Q2'], pegamos as colunas na ordem exata ['Q1', 'Q2']
+            # Shape: (n_amostras, n_quantificadores_total)
+            preds_full = dataset_data["pred_prev"][ranking].values
+            times_full = dataset_data["run_time"][ranking].values
+            
+            # Recupera os metadados (alpha, iteration, etc) que estão no índice
+            # index_vals é um DataFrame com as colunas: sample_size, sampling_seed, iteration, alpha
+            index_df = dataset_data.index.to_frame(index=False)
+            alphas = index_df["alpha"].values
+            
+            # Lógica de Pesos (Pré-cálculo para todos os K)
+            # Calculamos todos os pesos antes para não repetir conta dentro do loop
+            all_k_weights = []
+            
+            if recommender_type == "regression":
+                full_error_list = np.array(recommender_evaluation.loc[dataset]['predicted_ranking_mae'])
+                # Tratamento de zero idêntico ao original, mas vetorizado
+                # (Aplica a correção no array todo, o slice depois respeita a lógica original)
+                full_error_list = np.where(full_error_list == 0, 1e-6, full_error_list)
+                
+                for k in range(1, len(ranking) + 1):
+                    k_errors = full_error_list[:k]
+                    denominator = np.sum(1 / k_errors)
+                    weights = (1 / k_errors) / denominator
+                    all_k_weights.append(weights)
+                recommender_tag = "REG"
+
+            elif recommender_type == "knn":
+                full_arr_list = np.array(recommender_evaluation.loc[dataset]['predicted_ranking_arr'])
+                for k in range(1, len(ranking) + 1):
+                    k_arr = full_arr_list[:k]
+                    weights = k_arr / np.sum(k_arr)
+                    all_k_weights.append(weights)
+                recommender_tag = "KNN"
+
+            # Loop Principal sobre K (O único loop necessário)
+            for k_idx, k in enumerate(range(1, len(ranking) + 1)):
+                # Fatia as matrizes para pegar apenas os Top-K quantificadores
+                # Shape: (n_amostras, k)
+                curr_preds = preds_full[:, :k]
+                curr_times = times_full[:, :k]
+                weights = all_k_weights[k_idx]
+
+                # --- Lógica Matemática (Idêntica à original) ---
+                
+                # 1. Run Time: Soma dos tempos dos k quantificadores
+                sum_runtime = np.sum(curr_times, axis=1)
+
+                # 2. Median Method: Mediana das predições
+                median_val = np.median(curr_preds, axis=1)
+                median_err = np.abs(median_val - alphas)
+
+                # 3. Weighted Method: Soma ponderada das predições
+                # np.dot faz a multiplicação linha a linha pelo vetor de pesos e soma
+                weighted_val = np.dot(curr_preds, weights)
+                weighted_err = np.abs(weighted_val - alphas)
+
+                # --- Montagem Otimizada dos Resultados ---
+                # Criamos dicionários em lote. Isso é muito mais rápido que append em DataFrame.
+                
+                # Preparamos os dados comuns
+                common_data = index_df.copy()
+                common_data["dataset"] = dataset
+                common_data["run_time"] = sum_runtime
+
+                # Bloco Median
+                df_med = common_data.copy()
+                df_med["quantifier"] = f"({recommender_tag})Top-{k}"
+                df_med["pred_prev"] = median_val
+                df_med["abs_error"] = median_err
+                
+                # Bloco Weighted
+                df_wei = common_data.copy()
+                df_wei["quantifier"] = f"({recommender_tag})Top-{k}+W"
+                df_wei["pred_prev"] = weighted_val
+                df_wei["abs_error"] = weighted_err
+                
+                results.append(df_med)
+                results.append(df_wei)
+
+            print(f"Finished {dataset}")
+
+        # Concatena tudo de uma vez (extremamente rápido)
+        ensemble_quantifier_eval = pd.concat(results, ignore_index=True)
+
+        # Garante a ordem exata das colunas do código original
+        cols_order = ["quantifier", "dataset", "sample_size", "sampling_seed", 
+                      "iteration", "alpha", "pred_prev", "abs_error", "run_time"]
+        ensemble_quantifier_eval = ensemble_quantifier_eval[cols_order]
+
+        # Ordenação final para garantir match perfeito com CSVs antigos
+        ensemble_quantifier_eval.sort_values(by=['quantifier', 'dataset'], inplace=True)
+        ensemble_quantifier_eval.reset_index(drop=True, inplace=True)
+        
+        if k_evaluation_path is not None:
+            ensemble_quantifier_eval.to_csv(k_evaluation_path, index=False)
+            
+        return ensemble_quantifier_eval
